@@ -242,7 +242,7 @@ main {
 .tide-box {
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  padding: 12px 14px;
+  padding: 10px 12px;
   background: var(--surface2);
   position: relative;
   overflow: hidden;
@@ -276,13 +276,13 @@ main {
 }
 
 .tide-time {
-  font-size: 24px; font-weight: 600; font-family: var(--mono);
+  font-size: 20px; font-weight: 600; font-family: var(--mono);
   letter-spacing: -0.03em; line-height: 1;
   color: var(--text);
 }
 .tide-height {
-  font-size: 11px; color: var(--text-muted); font-family: var(--mono);
-  margin-top: 2px;
+  font-size: 10px; color: var(--text-muted); font-family: var(--mono);
+  margin-top: 3px;
 }
 .tide-countdown {
   font-size: 10px; color: var(--yellow);
@@ -317,17 +317,22 @@ main {
   display: block;
 }
 
+/* Kennwerte-Leiste (Stats): kompakt und luftig, kein Border */
 .gezeiten-stats {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  gap: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
 }
 .g-stat {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: 8px 10px;
+  padding: 10px 14px;
   min-width: 0; overflow: hidden;
+  border-right: 1px solid var(--border);
 }
+.g-stat:last-child { border-right: none; }
 .g-stat-lbl {
   font-size: 9px; font-family: var(--mono); color: var(--text-dim);
   text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
@@ -339,10 +344,18 @@ main {
   letter-spacing: -0.01em;
 }
 @media (max-width: 1100px) {
-  .gezeiten-stats { grid-template-columns: repeat(3, 1fr); }
+  .gezeiten-stats {
+    grid-template-columns: repeat(3, 1fr);
+    border-radius: var(--r-sm);
+  }
+  .g-stat:nth-child(3n) { border-right: none; }
+  .g-stat:nth-child(n+4) { border-top: 1px solid var(--border); }
 }
 @media (max-width: 560px) {
   .gezeiten-stats { grid-template-columns: repeat(2, 1fr); }
+  .g-stat { border-right: 1px solid var(--border); }
+  .g-stat:nth-child(2n) { border-right: none; }
+  .g-stat:nth-child(n+3) { border-top: 1px solid var(--border); }
 }
 
 /* ═══════════════════════════════════════
@@ -791,16 +804,22 @@ footer {
 
 /* Gezeiten full layout */
 .gezeiten-full-layout {
-  display: flex; gap: 16px; align-items: stretch;
+  display: flex; gap: 20px; align-items: stretch;
 }
 .gezeiten-table-col {
-  width: 300px; flex-shrink: 0;
+  width: 240px; flex-shrink: 0;
   display: flex; flex-direction: column; min-height: 0;
 }
 .gezeiten-table-col .pegel-table-wrap {
   flex: 1 1 0;
   max-height: none;
   min-height: 0;
+}
+/* Sektion-Überschrift: klein, dezent, einheitlich verwendet */
+.section-label {
+  font-size: 9px; font-family: var(--mono); color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 8px;
 }
 
 @media (max-width: 1100px) {
@@ -850,9 +869,9 @@ footer {
     <div class="gezeiten-today-pills" id="gezeiten-today"></div>
 
     <div class="gezeiten-full-layout">
-      <!-- LINKE SPALTE: nur BSH Tabelle -->
+      <!-- LINKE SPALTE: Scheitelwert-Tabelle -->
       <div class="gezeiten-table-col">
-        <div class="card-meta" style="margin-bottom:8px">Nächste Ereignisse</div>
+        <div class="section-label">Nächste Ereignisse</div>
         <div class="pegel-table-wrap">
           <table class="data-table" id="bsh-table">
             <thead>
@@ -864,9 +883,9 @@ footer {
           </table>
         </div>
       </div>
-      <!-- RECHTE SPALTE: Chart oben, darunter Stats, darunter Events -->
-      <div class="gezeiten-body" style="flex:1 1 0;min-width:0;width:100%;display:flex;flex-direction:column;gap:12px">
-        <div class="chart-wrap" style="height:380px;width:100%;padding-top:18px"><canvas id="gezeiten-chart"></canvas></div>
+      <!-- RECHTE SPALTE: Chart (groß) → Kennwerte-Leiste → Events kompakt -->
+      <div class="gezeiten-body" style="flex:1 1 0;min-width:0;width:100%;display:flex;flex-direction:column;gap:14px">
+        <div class="chart-wrap" style="height:440px;width:100%;padding-top:18px"><canvas id="gezeiten-chart"></canvas></div>
         <div class="gezeiten-stats" id="gezeiten-stats" style="width:100%"></div>
         <div class="gezeiten-events" id="gezeiten-events" style="width:100%"></div>
       </div>
