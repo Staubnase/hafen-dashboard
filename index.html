@@ -180,6 +180,146 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
   width: 100%;
   accent-color: var(--accent);
 }
+
+/* ═══════════════════════════════════════
+   TIDE TABLE MODE (wie im FARGE-Plan)
+   Zeit-Raster mit 15-Min-Zellen, Ereignisse als grüne Balken,
+   Regelarbeitszeit 07-17 Uhr grau hinterlegt.
+═══════════════════════════════════════ */
+.tide-table-info {
+  margin-bottom: 10px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text-muted);
+}
+.tide-table-legend {
+  display: flex; gap: 20px; flex-wrap: wrap;
+}
+.tide-legend-item {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.tide-legend-bar {
+  display: inline-block;
+  width: 28px; height: 10px;
+  background: #86c26a; border: 1px solid #5a9a42;
+  border-radius: 2px;
+}
+.tide-legend-workhours {
+  display: inline-block;
+  width: 28px; height: 10px;
+  background: rgba(160, 203, 232, 0.35);
+  border: 1px solid #a0cbe8;
+  border-radius: 2px;
+}
+
+/* Scroll-Container: horizontal scrollbar, vertikal wächst mit Inhalt */
+.tide-grid-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.tide-grid {
+  display: grid;
+  font-family: var(--mono); font-size: 10px;
+  /* Spalten: Datum-Spalte (80px) | "früh/spät"-Label (40px) | NW/HW-Zeiten (180px) | Zeitachse (scrollbar, min 1920px) */
+  grid-template-columns: 80px 40px 180px minmax(1920px, 1fr);
+  min-width: 100%;
+}
+.tide-grid-header {
+  display: contents;
+}
+.tide-grid-header > .th {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  padding: 6px 8px;
+  font-weight: 600; font-size: 10px;
+  color: var(--text-muted);
+  position: sticky; top: 0;
+  z-index: 5;
+}
+/* Zeitachse: 96 Viertelstunden × 00 bis 24 Uhr → inneres Grid */
+.tide-grid-timeheader {
+  display: grid;
+  grid-template-columns: repeat(96, 1fr);
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  position: sticky; top: 0; z-index: 5;
+}
+.tide-time-tick {
+  font-size: 8px; color: var(--text-dim);
+  text-align: center;
+  padding: 3px 0 2px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  position: relative;
+}
+.tide-time-tick:last-child { border-right: none; }
+.tide-time-tick.major { border-right: 1px solid var(--border2); }
+/* Regelarbeitszeit-Hintergrund über alle Zeilen */
+.tide-time-tick.workhours {
+  background: rgba(160, 203, 232, 0.35);
+}
+
+/* Datum-Zellen */
+.tide-row-date, .tide-row-label, .tide-row-times, .tide-row-grid {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  min-height: 22px;
+  display: flex; align-items: center;
+}
+.tide-row-date {
+  font-weight: 600; color: var(--text);
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  white-space: nowrap;
+}
+.tide-row-date.weekend { background: #f5f3ed; }
+.tide-row-label {
+  color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: 0.05em; font-size: 9px;
+  border-right: 1px solid var(--border);
+}
+.tide-row-times {
+  font-size: 10px;
+  gap: 8px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tide-row-times .t-main { font-weight: 600; color: var(--text); min-width: 42px; }
+.tide-row-times .t-pre,
+.tide-row-times .t-post { color: var(--text-dim); min-width: 42px; }
+
+/* Zeit-Raster-Zeile: selbes 96-Spalten-Grid wie der Header */
+.tide-row-grid {
+  display: grid;
+  grid-template-columns: repeat(96, 1fr);
+  padding: 0;
+  position: relative;
+  min-height: 22px;
+}
+.tide-grid-cell {
+  border-right: 1px solid rgba(0,0,0,.04);
+  min-height: 22px;
+}
+.tide-grid-cell.major { border-right: 1px solid var(--border); }
+.tide-grid-cell.workhours {
+  background: rgba(160, 203, 232, 0.18);
+}
+/* Der grüne Ereignis-Balken: absolute innerhalb der Zeile */
+.tide-event-bar {
+  position: absolute;
+  top: 3px; bottom: 3px;
+  background: #86c26a;
+  border: 1px solid #5a9a42;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 2;
+}
+.tide-event-bar.hw {
+  background: #8fb3e8;
+  border-color: #4a7bc8;
+}
 .tide-scrub-row {
   display: flex; gap: 12px; align-items: center;
 }
@@ -1410,15 +1550,39 @@ footer {
         <div class="tide-view-title">Gezeitenvorausberechnung — Pegel Harburg</div>
       </div>
       <div class="tide-view-actions">
+        <div class="range-selector" id="tide-mode-selector">
+          <button class="range-btn active" data-mode="chart" onclick="setTideMode('chart')">📈 Graph</button>
+          <button class="range-btn" data-mode="table" onclick="setTideMode('table')">📋 Tabelle</button>
+        </div>
+        <div class="range-selector" id="tide-hwnw-selector">
+          <button class="range-btn" data-type="H" onclick="setTideHwNw('H')">HW</button>
+          <button class="range-btn active" data-type="N" onclick="setTideHwNw('N')">NW</button>
+        </div>
         <span class="badge badge-ok" id="tide-view-badge">Live</span>
       </div>
     </div>
 
-    <div class="tide-chart-big-wrap">
-      <canvas id="tide-big-chart"></canvas>
+    <!-- GRAPH-MODUS -->
+    <div id="tide-chart-mode">
+      <div class="tide-chart-big-wrap">
+        <canvas id="tide-big-chart"></canvas>
+      </div>
     </div>
 
-    <!-- Scroll/Zoom-Leiste für den sichtbaren Zeitbereich -->
+    <!-- TABELLEN-MODUS -->
+    <div id="tide-table-mode" style="display:none">
+      <div class="tide-table-info" id="tide-table-info">
+        <div class="tide-table-legend">
+          <span class="tide-legend-item"><span class="tide-legend-bar"></span> Ereignis incl. 2 Stunden Vor- und Nachlauf</span>
+          <span class="tide-legend-item"><span class="tide-legend-workhours"></span> Regelarbeitszeit 07:00–17:00</span>
+        </div>
+      </div>
+      <div class="tide-grid-scroll">
+        <div class="tide-grid" id="tide-grid"></div>
+      </div>
+    </div>
+
+    <!-- Scroll/Zoom-Leiste für den sichtbaren Zeitbereich (beide Modi) -->
     <div class="tide-scrub">
       <div class="tide-scrub-label">
         <span id="tide-scrub-from">—</span>
@@ -4417,9 +4581,10 @@ function renderGezeiten() {
   badge.textContent = useLive ? `${todayCount} heute · Live` : `${todayCount} heute`;
   badge.className = useLive ? 'badge badge-ok' : 'badge badge-warn';
 
-  // Wenn der Tide-View gerade aktiv ist, auch den großen Chart aktualisieren
+  // Wenn der Tide-View gerade aktiv ist, auch den großen Chart/Tabelle aktualisieren
   if (document.body.classList.contains('view-tide')) {
-    renderTideBig();
+    if (tideMode === 'table') renderTideTable();
+    else renderTideBig();
   }
 }
 
@@ -4739,6 +4904,175 @@ function renderTideBig() {
   document.getElementById('tide-scrub-window-val').textContent = tideBigWindowHours + ' h';
 }
 
+// ══════════════════════════════════════════
+//  TIDE-TABLE: Tabellenansicht (FARGE-Style)
+//  Zwei Modi (Graph/Tabelle) via setTideMode()
+//  HW oder NW via setTideHwNw()
+// ══════════════════════════════════════════
+let tideMode = 'chart';   // 'chart' | 'table'
+let tideHwNw = 'N';       // 'H' | 'N'
+
+function setTideMode(mode) {
+  tideMode = mode;
+  document.querySelectorAll('#tide-mode-selector .range-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  document.getElementById('tide-chart-mode').style.display = (mode === 'chart') ? '' : 'none';
+  document.getElementById('tide-table-mode').style.display = (mode === 'table') ? '' : 'none';
+  try { localStorage.setItem('tide_mode', mode); } catch(e) {}
+  if (mode === 'chart') renderTideBig();
+  else renderTideTable();
+}
+
+function setTideHwNw(typ) {
+  tideHwNw = typ;
+  document.querySelectorAll('#tide-hwnw-selector .range-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === typ);
+  });
+  try { localStorage.setItem('tide_hwnw', typ); } catch(e) {}
+  if (tideMode === 'table') renderTideTable();
+}
+
+// Baut die Tabellenansicht. Nutzt denselben Zeitbereich wie der Chart-Slider.
+function renderTideTable() {
+  const grid = document.getElementById('tide-grid');
+  if (!grid) return;
+  const s = collectTideBigSeries();
+  if (!s.peaks.length) {
+    grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-family:var(--mono);font-size:12px">Keine Scheitelwerte im Datensatz</div>';
+    return;
+  }
+
+  // Aktueller Slider-Zeitbereich
+  const allTs = [...s.astro, ...s.forecast, ...s.measure].map(p => p.ts.getTime());
+  if (!allTs.length) {
+    grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Keine Daten</div>';
+    return;
+  }
+  const tMin = Math.min(...allTs);
+  const tMax = Math.max(...allTs);
+  const totalMs = tMax - tMin;
+  const windowMs = tideBigWindowHours * 3600000;
+  const maxOffsetMs = Math.max(0, totalMs - windowMs);
+  const offsetMs = maxOffsetMs * (tideBigOffsetPct / 100);
+  const viewStart = tMin + offsetMs;
+  const viewEnd   = Math.min(tMax, viewStart + windowMs);
+
+  // Filter Peaks nach Typ und Zeitbereich
+  const relevantPeaks = s.peaks.filter(p => {
+    const t = p.ts.getTime();
+    return p.typ === tideHwNw && t >= viewStart && t <= viewEnd;
+  });
+
+  // Peaks pro Tag gruppieren
+  const byDay = new Map();
+  relevantPeaks.forEach(p => {
+    const key = p.ts.toDateString();
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key).push(p);
+  });
+
+  // Zeitbereich-Tage aufspannen (auch wenn an einem Tag kein Peak liegt — zeige leere Zeile)
+  const days = [];
+  const d0 = new Date(viewStart); d0.setHours(0,0,0,0);
+  for (let d = new Date(d0); d.getTime() <= viewEnd; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d));
+  }
+
+  // HTML aufbauen
+  const weekdays = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const fmtDate = d => `${weekdays[d.getDay()]}. ${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+  const fmtTime = d => `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+
+  // Minute-to-column (96 Spalten = 24h × 4 Viertel)
+  const minToCol = (h, m) => (h * 4) + Math.round(m / 15);
+
+  let html = '';
+
+  // Header-Zeile: Spalten-Überschriften
+  html += '<div class="tide-grid-header">';
+  html += '<div class="th">Datum</div>';
+  html += '<div class="th"></div>';
+  html += '<div class="th" style="font-size:9px">' + (tideHwNw === 'H' ? 'HW' : 'NW') + ' &nbsp; -2 Std &nbsp; +2 Std</div>';
+  html += '<div class="tide-grid-timeheader">';
+  for (let q = 0; q < 96; q++) {
+    const h = Math.floor(q / 4), m = (q % 4) * 15;
+    const isMajor = m === 0;
+    const isWork = h >= 7 && h < 17;
+    const label = isMajor ? String(h).padStart(2,'0') + ':00' : (m === 30 ? ':30' : '');
+    const cls = ['tide-time-tick'];
+    if (isMajor) cls.push('major');
+    if (isWork) cls.push('workhours');
+    html += `<div class="${cls.join(' ')}">${label}</div>`;
+  }
+  html += '</div></div>';
+
+  // Datenzeilen
+  days.forEach(day => {
+    const key = day.toDateString();
+    const peaks = (byDay.get(key) || []).sort((a, b) => a.ts - b.ts);
+    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+
+    // Wenn keine Peaks: eine leere Zeile mit nur Raster
+    const rowsNeeded = Math.max(1, peaks.length);
+    for (let r = 0; r < rowsNeeded; r++) {
+      const p = peaks[r];
+      const isFirst = r === 0;
+      // Datum nur in der ersten Zeile des Tages
+      html += `<div class="tide-row-date${isWeekend?' weekend':''}">${isFirst ? fmtDate(day) : ''}</div>`;
+      // "früh"/"spät"-Label wenn zwei Peaks am Tag
+      let label = '';
+      if (peaks.length === 2) label = r === 0 ? 'früh' : 'spät';
+      else if (peaks.length === 1) label = '';
+      html += `<div class="tide-row-label">${label}</div>`;
+      // Zeiten-Spalte: Haupt-Zeit | -2h | +2h
+      if (p) {
+        const pre = new Date(p.ts.getTime() - 2 * 3600000);
+        const post = new Date(p.ts.getTime() + 2 * 3600000);
+        html += `<div class="tide-row-times">
+          <span class="t-main">${fmtTime(p.ts)}</span>
+          <span class="t-pre">${fmtTime(pre)}</span>
+          <span class="t-post">${fmtTime(post)}</span>
+        </div>`;
+      } else {
+        html += '<div class="tide-row-times"></div>';
+      }
+      // Zeit-Raster-Zeile: 96 leere Zellen + absolut positionierte Bars
+      html += '<div class="tide-row-grid">';
+      for (let q = 0; q < 96; q++) {
+        const h = Math.floor(q / 4), m = (q % 4) * 15;
+        const isMajor = m === 0;
+        const isWork = h >= 7 && h < 17;
+        const cls = ['tide-grid-cell'];
+        if (isMajor) cls.push('major');
+        if (isWork) cls.push('workhours');
+        html += `<div class="${cls.join(' ')}"></div>`;
+      }
+      // Balken: ±2h um den Peak. Position in % der 96 Spalten.
+      if (p) {
+        const peakDay = new Date(p.ts.getFullYear(), p.ts.getMonth(), p.ts.getDate());
+        // Start/End in Minuten ab 00:00 des Peak-Tages (kann negativ oder >1440 sein → ans Tagesende clampen)
+        const startMin = ((p.ts.getTime() - peakDay.getTime()) / 60000) - 120;  // -2h
+        const endMin   = ((p.ts.getTime() - peakDay.getTime()) / 60000) + 120;  // +2h
+        // In diese Tageszeile eintragen (clamp 0..1440)
+        const s0 = Math.max(0, startMin);
+        const e0 = Math.min(1440, endMin);
+        if (s0 < 1440 && e0 > 0) {
+          const leftPct  = (s0 / 1440) * 100;
+          const widthPct = ((e0 - s0) / 1440) * 100;
+          const barCls = tideHwNw === 'H' ? 'tide-event-bar hw' : 'tide-event-bar';
+          html += `<div class="${barCls}" style="left:${leftPct}%;width:${widthPct}%"></div>`;
+        }
+        // Falls der Balken in den nächsten/vorigen Tag reicht: das regeln wir im FARGE-Plan auch via overflow
+        // (spart Komplexität — Hauptereignis liegt fast immer im Tag)
+      }
+      html += '</div>';  // /tide-row-grid
+    }
+  });
+
+  grid.innerHTML = html;
+}
+
 function tideBigJumpNow() {
   // Stelle Position so, dass "jetzt" zentriert im View liegt
   const s = collectTideBigSeries();
@@ -4760,18 +5094,26 @@ function tideBigJumpNow() {
 document.addEventListener('DOMContentLoaded', () => {
   const win = document.getElementById('tide-scrub-window');
   const ofs = document.getElementById('tide-scrub-offset');
+  const refreshActive = () => {
+    if (tideMode === 'chart') renderTideBig();
+    else renderTideTable();
+  };
   if (win) win.addEventListener('input', e => {
     tideBigWindowHours = parseInt(e.target.value);
-    renderTideBig();
+    refreshActive();
   });
   if (ofs) ofs.addEventListener('input', e => {
     tideBigOffsetPct = parseFloat(e.target.value);
-    renderTideBig();
+    refreshActive();
   });
   // View aus localStorage restaurieren
   try {
     const v = localStorage.getItem('dashboard_view');
     if (v === 'tide') switchView('tide');
+    const m = localStorage.getItem('tide_mode');
+    if (m === 'table') setTideMode('table');
+    const t = localStorage.getItem('tide_hwnw');
+    if (t === 'H' || t === 'N') setTideHwNw(t);
   } catch(e) {}
 });
 
