@@ -1192,7 +1192,7 @@ footer {
       <span class="w-temp"><span id="w-temp">—</span><sup>°C</sup></span>
       <span class="w-desc" id="w-desc">Laden…</span>
       <div class="wetter-pills">
-        <div class="w-pill">💨 <strong><span id="w-wind">—</span></strong> km/h</div>
+        <div class="w-pill">💨 <strong><span id="w-wind">—</span></strong> m/s</div>
         <div class="w-pill">🌧 <strong><span id="w-prec">—</span></strong> mm</div>
         <div class="w-pill">🌡 WMO <strong><span id="w-code">—</span></strong></div>
       </div>
@@ -1537,11 +1537,11 @@ async function loadWetter() {
   const badge = document.getElementById('wetter-badge');
   badge.textContent='Laden…'; badge.className='badge badge-idle';
   try {
-    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=53.454&longitude=9.989&current=temperature_2m,wind_speed_10m,weather_code,precipitation');
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=53.454&longitude=9.989&current=temperature_2m,wind_speed_10m,weather_code,precipitation&wind_speed_unit=ms');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const j = await res.json(); const c = j.current;
     document.getElementById('w-temp').textContent = Math.round(c.temperature_2m);
-    document.getElementById('w-wind').textContent = Math.round(c.wind_speed_10m);
+    document.getElementById('w-wind').textContent = c.wind_speed_10m.toFixed(1);
     document.getElementById('w-prec').textContent = c.precipitation.toFixed(1);
     document.getElementById('w-code').textContent = c.weather_code;
     document.getElementById('w-icon').textContent = WMO_I[c.weather_code] || '🌡';
@@ -3771,26 +3771,6 @@ function renderGezeiten() {
       </tr>`;
     }).join('');
   }
-
-  // Today pills
-  const todayEvents = all.filter(e => {
-    return useLive
-      ? (e.dt.getDate()===todayDay && e.dt.getMonth()+1===todayMonth)
-      : (e.day===todayDay && e.month===todayMonth);
-  });
-  const todayEl = document.getElementById('gezeiten-today');
-  todayEl.innerHTML = todayEvents.length
-    ? todayEvents.map(e => {
-        const t = `${String(e.hour).padStart(2,'0')}:${String(e.min).padStart(2,'0')}`;
-        const cls = e.typ==='H' ? 'tp-hw' : '';
-        const lbl = e.typ==='H' ? 'HW' : 'NW';
-        return `<div class="today-pill">
-          <span class="tp ${cls}" style="font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.05em">${lbl}</span>
-          <span class="tt">${t} Uhr</span>
-          <span class="th">${e.heightPNP.toFixed(2)} m</span>
-        </div>`;
-      }).join('')
-    : '<span style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">Keine Ereignisse gefunden</span>';
 
   // Immer die nächsten 3 zukünftigen Scheitelwerte anzeigen (HW/NW)
   const eventsList = all.filter(e => e.dt > nowRef).slice(0, 3);
