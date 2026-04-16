@@ -286,7 +286,7 @@ main {
 .tide-box {
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  padding: 14px 16px;
+  padding: 12px 14px;
   background: var(--surface2);
   position: relative;
   overflow: hidden;
@@ -306,25 +306,29 @@ main {
 
 .tide-box-top {
   display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
   margin-bottom: 8px;
 }
 .tide-type-pill {
   font-size: 10px; font-weight: 600; font-family: var(--mono);
-  text-transform: uppercase; letter-spacing: 0.06em;
+  text-transform: uppercase; letter-spacing: 0.04em;
   padding: 3px 8px; border-radius: 100px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .tp-hw { background: var(--accent-bg); color: var(--accent); }
 .tp-nw { background: var(--bg2); color: var(--text-dim); }
 .tide-date-small {
-  font-size: 12px; color: var(--text-muted); font-family: var(--mono);
+  font-size: 11px; color: var(--text-muted); font-family: var(--mono);
   font-weight: 500;
+  white-space: nowrap;
 }
 
 /* Hauptzeile: links Zeit+Countdown, rechts NHN+PNP */
 .tide-main-row {
   display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 12px;
-  margin-top: 2px;
+  gap: 8px;
+  margin-top: 4px;
 }
 .tide-col {
   display: flex; flex-direction: column; gap: 4px;
@@ -332,12 +336,13 @@ main {
 }
 .tide-col-right { align-items: flex-end; text-align: right; }
 .tide-time {
-  font-size: 26px; font-weight: 600; font-family: var(--mono);
+  font-size: 22px; font-weight: 600; font-family: var(--mono);
   letter-spacing: -0.03em; line-height: 1;
   color: var(--text);
+  white-space: nowrap;
 }
 .tide-nhn {
-  font-size: 20px; font-weight: 600; font-family: var(--mono);
+  font-size: 17px; font-weight: 600; font-family: var(--mono);
   letter-spacing: -0.02em; line-height: 1;
   color: var(--text);
   white-space: nowrap;
@@ -947,7 +952,7 @@ footer {
   align-items: stretch;
 }
 .gezeiten-top-table {
-  width: 360px; flex-shrink: 0;
+  width: 280px; flex-shrink: 0;
   display: flex; flex-direction: column;
 }
 .gezeiten-top-table .pegel-table-wrap {
@@ -1097,7 +1102,7 @@ footer {
     </div>
 
     <!-- Chart über die volle Breite -->
-    <div class="chart-wrap" style="height:440px;width:100%;padding-top:18px">
+    <div class="chart-wrap" style="height:440px;width:100%;padding-top:26px">
       <canvas id="gezeiten-chart"></canvas>
     </div>
 
@@ -3932,6 +3937,9 @@ function renderGezeiten() {
     };
     baseOpts.animation = { duration: 400 };
     baseOpts.scales.x.ticks.maxTicksLimit = 14;
+    // Platz oben innerhalb der Chart-Area, damit Wochentag-Labels (Do/Fr/Sa)
+    // und die "Jetzt"-Pille nicht abgeschnitten werden
+    baseOpts.layout = { padding: { top: 22 } };
 
     // Plugin: Tages-Separator + Tages-Labels + Jetzt-Linie
     // Arbeitszeit-Hintergrund (07-17 Uhr) — zeichnet hellblaue Bänder HINTER den Kurven
