@@ -1,0 +1,3809 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hafen Dashboard — Hamburg</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════ */
+:root {
+  /* Light */
+  --bg:          #f5f5f3;
+  --bg2:         #ebebea;
+  --surface:     #ffffff;
+  --surface2:    #f9f9f8;
+  --border:      #e4e4e0;
+  --border2:     #d4d4cf;
+  --text:        #1a1a18;
+  --text-muted:  #6b6b66;
+  --text-dim:    #a8a8a2;
+  --accent:      #0066ff;
+  --accent-bg:   rgba(0,102,255,0.07);
+  --green:       #16a34a;
+  --green-bg:    rgba(22,163,74,0.08);
+  --yellow:      #ca8a04;
+  --yellow-bg:   rgba(202,138,4,0.08);
+  --red:         #dc2626;
+  --red-bg:      rgba(220,38,38,0.08);
+  --shadow:      0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --font:        'DM Sans', sans-serif;
+  --mono:        'DM Mono', monospace;
+  --r:           12px;
+  --r-sm:        8px;
+  --ease:        cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ═══════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+/* ═══════════════════════════════════════
+   HEADER
+═══════════════════════════════════════ */
+header {
+  position: sticky; top: 0; z-index: 200;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  box-shadow: var(--shadow);
+}
+
+.header-left { display: flex; align-items: center; gap: 10px; }
+
+.logo-mark {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1; flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 14px; font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.header-subtitle {
+  font-size: 12px; color: var(--text-muted);
+  font-weight: 400;
+  padding-left: 10px;
+  border-left: 1px solid var(--border2);
+  margin-left: 2px;
+}
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.live-indicator {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 500;
+  color: var(--green);
+  font-family: var(--mono);
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  animation: pulse-live 2.5s ease-in-out infinite;
+}
+@keyframes pulse-live {
+  0%,100% { opacity:1; transform: scale(1); }
+  50%      { opacity:.5; transform: scale(.8); }
+}
+
+.refresh-timer {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text-dim);
+  padding: 4px 8px;
+  background: var(--bg2);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+
+.btn-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.btn-icon:hover {
+  background: var(--bg2);
+  border-color: var(--border2);
+  color: var(--text);
+}
+.btn-icon.spinning { animation: spin 0.5s ease; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════
+   MAIN GRID
+═══════════════════════════════════════ */
+main {
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 16px;
+  max-width: 1560px;
+  margin: 0 auto;
+}
+
+/* ═══════════════════════════════════════
+   CARDS
+═══════════════════════════════════════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  animation: fadeUp 0.35s var(--ease) both;
+}
+.card:hover { box-shadow: var(--shadow-md); }
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.card:nth-child(1) { animation-delay: 0.04s; }
+.card:nth-child(2) { animation-delay: 0.08s; }
+.card:nth-child(3) { animation-delay: 0.12s; }
+.card:nth-child(4) { animation-delay: 0.16s; }
+.card:nth-child(5) { animation-delay: 0.20s; }
+
+/* Card header */
+.card-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-meta {
+  font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-dim);
+  font-family: var(--mono); margin-bottom: 3px;
+}
+.card-title {
+  font-size: 15px; font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Badges */
+.badge {
+  font-size: 10px; font-weight: 600; font-family: var(--mono);
+  letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 100px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.badge-ok     { background: var(--green-bg);  color: var(--green); }
+.badge-warn   { background: var(--yellow-bg); color: var(--yellow); }
+.badge-err    { background: var(--red-bg);    color: var(--red); }
+.badge-idle   { background: var(--bg2);       color: var(--text-dim); border: 1px solid var(--border); }
+
+/* ═══════════════════════════════════════
+   GRID — 3 columns
+   Col 1 (narrow): BSH-Tabelle | Pegel-Tabelle | Wetter
+   Col 2 (wide):   Gezeiten-Dashboard (row 1-2) | Karte (row 2-3)
+   Col 3 (wide):   Karte (row 1-2) | HPA (row 3)
+═══════════════════════════════════════ */
+main {
+  /* 12-Spalten-Grid für präzise Proportionen:
+     Row 1: Pegel (links, 4/12 ≈ 33%) | Gezeiten (rechts, 8/12 ≈ 67%)
+     Row 2: Wetter (links, 6/12 = 50%, über 2 Sub-Rows)
+            rechts (6/12): Verkehr oben, Brücken darunter — zusammen Wetter-Höhe
+  */
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: auto auto auto;
+}
+#pegel-card     { grid-column: 1 / span 4;   grid-row: 1;     min-width: 0; }
+#gezeiten-card  { grid-column: 5 / span 8;   grid-row: 1;     min-width: 0; overflow: hidden; }
+#wetter-card    { grid-column: 1 / span 6;   grid-row: 2 / 4; min-width: 0; }
+#verkehr-card   { grid-column: 7 / span 6;   grid-row: 2;     min-width: 0; }
+#bruecken-card  { grid-column: 7 / span 6;   grid-row: 3;     min-width: 0; }
+#bsh-table-card { grid-column: 1 / -1;       grid-row: 4;     display: none; }
+
+/* ═══════════════════════════════════════
+   GEZEITEN CARD
+═══════════════════════════════════════ */
+.gezeiten-body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.gezeiten-events { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+.tide-box {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  background: var(--surface2);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.tide-box::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+}
+.tide-box.hw::before { background: var(--accent); }
+.tide-box.nw::before { background: var(--text-dim); }
+.tide-box.next-up {
+  border-color: var(--border2);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.tide-box-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
+.tide-type-pill {
+  font-size: 9px; font-weight: 600; font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 2px 7px; border-radius: 100px;
+}
+.tp-hw { background: var(--accent-bg); color: var(--accent); }
+.tp-nw { background: var(--bg2); color: var(--text-dim); }
+.tide-date-small {
+  font-size: 10px; color: var(--text-dim); font-family: var(--mono);
+}
+
+.tide-time {
+  font-size: 24px; font-weight: 600; font-family: var(--mono);
+  letter-spacing: -0.03em; line-height: 1;
+  color: var(--text);
+}
+.tide-height {
+  font-size: 11px; color: var(--text-muted); font-family: var(--mono);
+  margin-top: 2px;
+}
+.tide-countdown {
+  font-size: 10px; color: var(--yellow);
+  font-family: var(--mono); margin-top: 3px;
+  font-weight: 500;
+}
+
+.gezeiten-right {}
+.gezeiten-today-pills {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 14px;
+}
+.today-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 4px 10px;
+  font-family: var(--mono); font-size: 11px;
+}
+.today-pill .tp { font-weight: 600; }
+.today-pill .tt { color: var(--text-muted); }
+.today-pill .th { color: var(--text-dim); }
+
+.chart-wrap {
+  position: relative; height: 180px;
+  width: 100%;
+}
+.chart-wrap > canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.gezeiten-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.g-stat {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  min-width: 0; overflow: hidden;
+}
+.g-stat-lbl {
+  font-size: 9px; font-family: var(--mono); color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.g-stat-val {
+  font-size: 14px; font-weight: 600; font-family: var(--mono); color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+@media (max-width: 1100px) {
+  .gezeiten-stats { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 560px) {
+  .gezeiten-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ═══════════════════════════════════════
+   PEGEL CARD
+═══════════════════════════════════════ */
+.pegel-stats {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 8px; margin-bottom: 16px;
+}
+.p-stat {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 10px 12px;
+}
+.p-stat-lbl { font-size: 9px; font-family: var(--mono); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 4px; }
+.p-stat-val { font-size: 20px; font-weight: 600; font-family: var(--mono); letter-spacing: -0.02em; }
+.p-stat-val span { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+.p-trend { font-size: 10px; font-weight: 500; margin-top: 2px; }
+.t-up   { color: var(--yellow); }
+.t-down { color: var(--accent); }
+.t-ok   { color: var(--green); }
+
+/* ═══════════════════════════════════════
+/* ═══════════════════════════════════════
+   BRÜCKEN CARD
+═══════════════════════════════════════ */
+.bruecken-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 6px;
+}
+.bruecke {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 9px 14px;
+  transition: border-color 0.15s;
+}
+.bruecke:hover { border-color: var(--border2); }
+.b-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.b-dot.ok   { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); }
+.b-dot.warn { background: var(--yellow); box-shadow: 0 0 0 3px var(--yellow-bg); }
+.b-dot.err  { background: var(--red);   box-shadow: 0 0 0 3px var(--red-bg); }
+.b-info { flex: 1; min-width: 0; }
+.b-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.b-detail { font-size: 10px; color: var(--text-muted); font-family: var(--mono); margin-top: 0; }
+.b-tag {
+  font-size: 9px; font-weight: 600; font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 7px; border-radius: 4px; flex-shrink: 0;
+}
+.b-tag.ok   { background: var(--green-bg);  color: var(--green); }
+.b-tag.warn { background: var(--yellow-bg); color: var(--yellow); }
+.b-tag.err  { background: var(--red-bg);    color: var(--red); }
+.mock-note  { font-size: 10px; color: var(--text-dim); font-family: var(--mono); margin-top: 10px; text-align: center; }
+
+/* ═══════════════════════════════════════
+   WETTER CARD
+═══════════════════════════════════════ */
+.wetter-topbar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.wetter-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+.w-temp {
+  font-size: 22px; font-weight: 600; letter-spacing: -0.03em;
+  line-height: 1; color: var(--text);
+}
+.w-temp sup { font-size: 11px; font-weight: 400; color: var(--text-muted); vertical-align: super; }
+.w-desc { font-size: 11px; color: var(--text-muted); }
+.wetter-pills { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
+.w-pill {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 100px; padding: 2px 8px;
+  font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+  white-space: nowrap; line-height: 1.5;
+}
+.w-pill strong { color: var(--text); font-weight: 600; font-size: 11px; }
+
+.radar-toggle {
+  margin-top: 10px; width: 100%;
+  padding: 6px; border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-muted);
+  font-family: var(--font); font-size: 11px; font-weight: 500;
+  cursor: pointer; transition: 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.radar-toggle:hover { border-color: var(--border2); color: var(--text); }
+.radar-frame { display: block; margin-top: 8px; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); }
+.radar-frame.open { display: block; }
+.radar-frame iframe { width: 100%; height: 480px; border: none; display: block; }
+
+/* ═══════════════════════════════════════
+   VERKEHR / MAP CARD
+═══════════════════════════════════════ */
+.map-wrap {
+  height: 340px; border-radius: var(--r-sm);
+  overflow: hidden; border: 1px solid var(--border);
+  position: relative;
+}
+#osm-map { width: 100%; height: 100%; }
+
+/* Expand-Button in Card-Head */
+.expand-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  background: var(--surface2); color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 14px; line-height: 1;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.expand-btn:hover { background: var(--bg); color: var(--text); border-color: var(--border2); }
+
+/* Vollbild-Modus */
+body.verkehr-fullscreen main > *:not(#verkehr-card) { display: none !important; }
+body.verkehr-fullscreen footer { display: none; }
+body.verkehr-fullscreen header { display: none; }
+body.verkehr-fullscreen #verkehr-card {
+  position: fixed !important;
+  inset: 0;
+  z-index: 9999;
+  grid-column: unset !important; grid-row: unset !important;
+  border-radius: 0; border: none;
+  max-width: none; width: 100vw; height: 100vh;
+  margin: 0; padding: 20px 24px;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+}
+body.verkehr-fullscreen #verkehr-card .map-wrap {
+  flex: 1;
+  height: auto !important;
+  min-height: 0;
+}
+
+.map-controls {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; flex-wrap: wrap;
+}
+.map-key-input {
+  flex: 1; min-width: 120px;
+  padding: 6px 10px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text); font-family: var(--mono); font-size: 11px;
+  outline: none; transition: border-color 0.15s;
+}
+.map-key-input:focus { border-color: var(--accent); }
+.map-key-input::placeholder { color: var(--text-dim); }
+.map-key-btn {
+  padding: 6px 14px; border-radius: var(--r-sm);
+  border: 1px solid transparent; background: var(--accent); color: #fff;
+  font-family: var(--font); font-size: 12px; font-weight: 500;
+  cursor: pointer; white-space: nowrap; transition: opacity 0.15s; flex-shrink: 0;
+}
+.map-key-btn:hover { opacity: 0.85; }
+.map-key-btn.active { background: var(--green-bg); color: var(--green); border-color: rgba(34,197,94,.25); }
+.map-toggle-btn {
+  padding: 6px 12px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text-muted); font-family: var(--font); font-size: 12px; font-weight: 500;
+  cursor: pointer; white-space: nowrap; transition: 0.15s; flex-shrink: 0;
+}
+.map-toggle-btn:hover { border-color: var(--border2); color: var(--text); }
+.map-toggle-btn.on { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+
+.map-legend {
+  display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;
+  align-items: center;
+}
+.map-legend-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--text-muted); font-family: var(--mono);
+}
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* Leaflet Incident-Marker (DivIcon) */
+.map-marker-wrap { background: transparent; border: 0; }
+.map-marker {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: #9ca3af;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.map-marker:hover { transform: scale(1.15); }
+/* Geplante (zukünftige) Vorfälle: halbdurchsichtig + strichlierter Rand */
+.map-marker.map-marker-future {
+  opacity: .7;
+  border-style: dashed;
+}
+
+/* Incident-Liste unter der Karte */
+.incidents-block { margin-top: 14px; }
+.incidents-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.incidents-list {
+  max-height: 260px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--bg);
+}
+.incidents-list::-webkit-scrollbar { width: 6px; }
+.incidents-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+.incidents-empty {
+  padding: 18px 14px; font-size: 12px; color: var(--text-dim);
+  font-family: var(--mono); text-align: center;
+}
+.incident-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 10px; align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  transition: background .12s;
+  cursor: pointer;
+}
+.incident-row:last-child { border-bottom: none; }
+.incident-row:hover { background: var(--bg-alt, #faf9f5); }
+.incident-icon {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.incident-icon.sev-0 { background: #e5e7eb; color: #374151; }
+.incident-icon.sev-1 { background: #dcfce7; color: #166534; }
+.incident-icon.sev-2 { background: #fef3c7; color: #92400e; }
+.incident-icon.sev-3 { background: #fecaca; color: #991b1b; }
+.incident-icon.sev-4 { background: #dbeafe; color: #1e40af; }
+.incident-main {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 0;
+}
+.incident-road {
+  font-weight: 600; color: var(--text);
+  font-size: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.incident-type {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase;
+}
+.incident-time {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+/* Geplante (zukünftige) Vorfälle in der Liste */
+.incident-row.future { opacity: .85; }
+.incident-row.future .incident-icon.future { opacity: .75; }
+.future-pill {
+  display: inline-block;
+  background: #dbeafe; color: #1e40af;
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  padding: 1px 6px; border-radius: 4px;
+  margin-left: 6px; vertical-align: middle;
+  letter-spacing: .05em;
+}
+.incident-meta {
+  font-size: 10px; color: var(--text-dim); font-family: var(--mono);
+  white-space: nowrap;
+  text-align: right;
+}
+.incident-meta strong { color: var(--text); font-size: 11px; }
+
+/* ═══════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════ */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; color: var(--text-dim); font-family: var(--mono);
+}
+
+/* ═══════════════════════════════════════
+   SKELETON / ERROR
+═══════════════════════════════════════ */
+.skel {
+  background: linear-gradient(90deg, var(--bg2) 25%, var(--border) 50%, var(--bg2) 75%);
+  background-size: 200% 100%;
+  animation: skel-anim 1.4s linear infinite;
+  border-radius: 4px; display: inline-block;
+}
+@keyframes skel-anim { 0% {background-position:200% 0} 100% {background-position:-200% 0} }
+.err-msg {
+  font-size: 11px; font-family: var(--mono); color: var(--red);
+  background: var(--red-bg); border: 1px solid rgba(220,38,38,0.2);
+  padding: 8px 12px; border-radius: var(--r-sm); margin-top: 10px;
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════ */
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  #gezeiten-card, #pegel-card, #bruecken-card, #wetter-card, #verkehr-card {
+    grid-column: 1; grid-row: auto;
+  }
+  .gezeiten-body { grid-template-columns: 1fr; }
+  .gezeiten-events { flex-direction: row; flex-wrap: wrap; }
+  .tide-box { flex: 1; min-width: 140px; }
+  .header-subtitle { display: none; }
+}
+
+@media (max-width: 540px) {
+  header { padding: 0 16px; }
+  main { padding: 14px 16px; gap: 12px; }
+  .pegel-stats { grid-template-columns: 1fr 1fr; }
+  .wetter-grid { grid-template-columns: 1fr 1fr; }
+  .refresh-timer { display: none; }
+}
+
+/* ═══════════════════════════════════════
+   DATA TABLES (Pegel + BSH)
+═══════════════════════════════════════ */
+.pegel-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  overflow-y: auto;
+  max-height: 260px;
+}
+
+/* Pegel card soll die Höhe der Gezeiten-Card matchen (align-self stretch via grid),
+   Tabelle scrollt innerhalb — keine min-height die die Card aufblähen würde */
+#pegel-card {
+  display: flex; flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+#pegel-card .pegel-table-wrap {
+  flex: 1 1 0;
+  max-height: none;
+  min-height: 120px;
+}
+#pegel-card .chart-wrap { flex-shrink: 0; }
+#pegel-card .pegel-refs { flex-shrink: 0; }
+#pegel-card .pegel-mini-stats { flex-shrink: 0; }
+.data-table {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--mono); font-size: 11px;
+}
+.data-table thead th {
+  background: var(--bg2);
+  color: var(--text-dim); font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 6px 10px; text-align: left;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 1;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.data-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.data-table tbody tr:last-child { border-bottom: none; }
+.data-table tbody tr:hover { background: var(--bg2); }
+.data-table tbody td {
+  padding: 6px 10px; color: var(--text);
+  white-space: nowrap;
+}
+.data-table tbody td:nth-child(3) { font-weight: 600; }
+.data-table .row-hw td { color: var(--accent); }
+.data-table .row-nw td { color: var(--text-muted); }
+.data-table .row-hw td:nth-child(3) { color: var(--accent); font-weight: 700; }
+
+/* Pegel mini stats — vertikal gestapelt, gleichmäßig verteilt, nowrap */
+.pegel-mini-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.pms-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 7px 9px;
+  min-width: 0;
+  overflow: hidden;
+}
+.pms-lbl {
+  font-size: 9px; color: var(--text-dim); font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: .08em;
+  white-space: nowrap;
+}
+.pms-val {
+  font-size: 15px; font-weight: 600; font-family: var(--mono); color: var(--text);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px;
+}
+.pms-val span {
+  font-size: 10px; font-weight: 400; color: var(--text-muted);
+  white-space: nowrap;
+}
+.pms-trend {
+  font-size: 11px; font-family: var(--mono); line-height: 1;
+  margin-left: 3px;
+}
+
+/* Pegel Referenzwerte Hamburg-Harburg */
+.pegel-refs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+}
+.pref {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 7px;
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  background: transparent;
+  min-width: 0;
+}
+.pref-lbl {
+  font-size: 8px; font-family: var(--mono);
+  color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: .08em; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.pref-val {
+  font-size: 11px; font-family: var(--mono);
+  font-weight: 600; color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Gezeiten full layout */
+.gezeiten-full-layout {
+  display: flex; gap: 16px; align-items: stretch;
+}
+.gezeiten-table-col {
+  width: 300px; flex-shrink: 0;
+  display: flex; flex-direction: column; min-height: 0;
+}
+.gezeiten-table-col .pegel-table-wrap {
+  flex: 1 1 0;
+  max-height: none;
+  min-height: 0;
+}
+
+@media (max-width: 1100px) {
+  .gezeiten-full-layout { flex-direction: column; }
+  .gezeiten-table-col { width: 100%; }
+  main { grid-template-columns: 1fr 1fr !important; }
+  #gezeiten-card { grid-column: 1 / -1; grid-row: auto; }
+  #pegel-card    { grid-column: 1 / -1; grid-row: auto; }
+  #wetter-card   { grid-column: 1;      grid-row: auto; }
+  #verkehr-card  { grid-column: 2;      grid-row: auto; }
+  #bruecken-card { grid-column: 1 / -1; grid-row: auto; }
+}
+@media (max-width: 700px) {
+  main { grid-template-columns: 1fr !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════ -->
+<header>
+  <div class="header-left">
+    <div class="logo-mark">⚓</div>
+    <span class="header-title">Hafen Dashboard</span>
+    <span class="header-subtitle">Hamburg · Live</span>
+  </div>
+  <div class="header-right">
+    <div class="live-indicator"><div class="live-dot"></div>Live</div>
+    <div class="refresh-timer" id="next-refresh">15:00</div>
+    <button class="btn-icon" id="refresh-btn" onclick="refreshAll()" title="Aktualisieren">↻</button>
+  </div>
+</header>
+
+<!-- ══ MAIN ════════════════════════════ -->
+<main>
+
+  <!-- GEZEITEN ──────────────────────── -->
+  <div class="card" id="gezeiten-card">
+    <div class="card-head">
+      <div>
+        <div class="card-meta" id="gezeiten-meta">Live-Wasserstand · Hamburg-Harburg, Elbe</div>
+        <div class="card-title">Gezeiten — Hochwasser & Niedrigwasser</div>
+      </div>
+      <span class="badge badge-ok" id="gezeiten-badge">Geladen</span>
+    </div>
+
+    <div class="gezeiten-today-pills" id="gezeiten-today"></div>
+
+    <div class="gezeiten-full-layout">
+      <!-- LINKE SPALTE: nur BSH Tabelle -->
+      <div class="gezeiten-table-col">
+        <div class="card-meta" style="margin-bottom:8px">Nächste Ereignisse</div>
+        <div class="pegel-table-wrap">
+          <table class="data-table" id="bsh-table">
+            <thead>
+              <tr><th>Datum</th><th>Uhrzeit</th><th>Ereignis</th><th>Abw.</th></tr>
+            </thead>
+            <tbody id="bsh-tbody">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:12px">Lade…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- RECHTE SPALTE: Chart oben, darunter Stats, darunter Events -->
+      <div class="gezeiten-body" style="flex:1 1 0;min-width:0;width:100%;display:flex;flex-direction:column;gap:12px">
+        <div class="chart-wrap" style="height:380px;width:100%;padding-top:18px"><canvas id="gezeiten-chart"></canvas></div>
+        <div class="gezeiten-stats" id="gezeiten-stats" style="width:100%"></div>
+        <div class="gezeiten-events" id="gezeiten-events" style="width:100%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PEGEL ─────────────────────────── -->
+  <div class="card" id="pegel-card">
+    <div class="card-head">
+      <div>
+        <div class="card-meta">PEGELONLINE · WSV · Hamburg-Harburg</div>
+        <div class="card-title">Wasserstand</div>
+      </div>
+      <span class="badge badge-idle" id="pegel-badge">Laden…</span>
+    </div>
+    <!-- Kompakte Stat-Zeile -->
+    <div class="pegel-mini-stats">
+      <div class="pms-item">
+        <span class="pms-lbl">Aktuell</span>
+        <span class="pms-val" id="pegel-now">—</span>
+        <span class="pms-trend" id="pegel-trend"></span>
+      </div>
+      <div class="pms-item">
+        <span class="pms-lbl">Max 48h</span>
+        <span class="pms-val" id="pegel-max">—</span>
+      </div>
+      <div class="pms-item">
+        <span class="pms-lbl">Min 48h</span>
+        <span class="pms-val" id="pegel-min">—</span>
+      </div>
+    </div>
+    <!-- Tabelle -->
+    <div class="pegel-table-wrap">
+      <table class="data-table" id="pegel-table">
+        <thead>
+          <tr><th>Datum</th><th>Uhrzeit</th><th>Höhe NHN</th><th>Trend</th></tr>
+        </thead>
+        <tbody id="pegel-tbody">
+          <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:16px">Lade Daten…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- Referenz-Schwellen Hamburg-Harburg -->
+    <div class="pegel-refs">
+      <div class="pref"><span class="pref-lbl">MHW</span><span class="pref-val">+2,19 m</span></div>
+      <div class="pref"><span class="pref-lbl">MNW</span><span class="pref-val">−1,66 m</span></div>
+      <div class="pref"><span class="pref-lbl">Sturmflut ab</span><span class="pref-val">+3,69 m</span></div>
+      <div class="pref"><span class="pref-lbl">PNP</span><span class="pref-val">−5,015 m</span></div>
+    </div>
+    <!-- Mini-Chart -->
+    <div class="chart-wrap" style="height:110px;margin-top:12px"><canvas id="pegel-chart"></canvas></div>
+    <div id="pegel-error"></div>
+  </div>
+
+  <!-- BRÜCKEN ───────────────────────── -->
+  <div class="card" id="bruecken-card">
+    <div class="card-head">
+      <div>
+        <div class="card-meta">HPA · DATEX II (Mock-Daten)</div>
+        <div class="card-title">Brückenstatus Hafen</div>
+      </div>
+      <span class="badge badge-warn" id="bruecken-badge">1 Warnung</span>
+    </div>
+    <div class="bruecken-list" id="bruecken-list"></div>
+    <p class="mock-note">⚠ Demo-Daten · echte DATEX-II-Integration via Mobilithek möglich</p>
+  </div>
+
+  <!-- WETTER ────────────────────────── -->
+  <div class="card" id="wetter-card">
+    <div class="card-head">
+      <div>
+        <div class="card-meta">Open-Meteo · Hamburg-Harburg · 53.45° N, 9.99° E</div>
+        <div class="card-title">Wetter Hamburg-Harburg</div>
+      </div>
+      <span class="badge badge-idle" id="wetter-badge">Laden…</span>
+    </div>
+    <div class="wetter-topbar">
+      <span class="wetter-icon" id="w-icon">🌫</span>
+      <span class="w-temp"><span id="w-temp">—</span><sup>°C</sup></span>
+      <span class="w-desc" id="w-desc">Laden…</span>
+      <div class="wetter-pills">
+        <div class="w-pill">💨 <strong><span id="w-wind">—</span></strong> km/h</div>
+        <div class="w-pill">🌧 <strong><span id="w-prec">—</span></strong> mm</div>
+        <div class="w-pill">🌡 WMO <strong><span id="w-code">—</span></strong></div>
+      </div>
+    </div>
+    <button class="radar-toggle" onclick="toggleRadar()" id="radar-btn">🌊 Radar ausblenden</button>
+    <div class="radar-frame open" id="radar-frame">
+      <iframe src="https://embed.windy.com/embed2.html?lat=53.454&lon=9.989&detailLat=53.454&detailLon=9.989&width=800&height=420&zoom=10&level=surface&overlay=rain&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" loading="lazy"></iframe>
+    </div>
+
+    <div id="wetter-error"></div>
+  </div>
+
+  <!-- VERKEHR / OSM ─────────────────── -->
+  <div class="card" id="verkehr-card">
+    <div class="card-head">
+      <div>
+        <div class="card-meta">OpenStreetMap · Leaflet · TomTom Traffic</div>
+        <div class="card-title">Live-Verkehr Hamburg Hafen</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge badge-ok" id="traffic-badge">OSM Live</span>
+        <button class="expand-btn" id="verkehr-expand-btn" onclick="toggleVerkehrFullscreen()" title="Vollbild">⛶</button>
+      </div>
+    </div>
+    <div class="map-wrap"><div id="osm-map"></div></div>
+    <div class="map-controls">
+      <input class="map-key-input" id="tomtom-key-input" type="hidden">
+      <button class="map-key-btn" id="traffic-btn" onclick="activateTraffic()" style="display:none">Traffic laden</button>
+      <button class="map-toggle-btn" id="traffic-toggle" onclick="toggleTrafficLayer()" style="display:none">● Flow</button>
+      <button class="map-toggle-btn" id="incident-toggle" onclick="toggleIncidentLayer()" style="display:none">⚠ Incidents</button>
+      <button class="map-toggle-btn" id="markers-toggle" onclick="toggleMarkersLayer()" style="display:none">📍 Markers</button>
+      <button class="map-toggle-btn on" id="future-toggle" onclick="toggleFutureIncidents()" style="display:none">🔮 Geplant</button>
+    </div>
+    <div class="map-legend">
+      <div class="map-legend-item"><div class="legend-dot" style="background:#22c55e"></div>Freie Fahrt</div>
+      <div class="map-legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Stockend</div>
+      <div class="map-legend-item"><div class="legend-dot" style="background:#ef4444"></div>Stau</div>
+      <span style="margin-left:auto;font-size:10px;color:var(--text-dim)">© <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:inherit">OSM</a> · TomTom Traffic™</span>
+    </div>
+    <div class="incidents-block">
+      <div class="incidents-head">
+        <div class="card-meta">Aktuelle Meldungen · Hamburger Hafen</div>
+        <span class="badge badge-idle" id="incidents-badge">—</span>
+      </div>
+      <div class="incidents-list" id="incidents-list">
+        <div class="incidents-empty">Lädt …</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <span>Hafen Dashboard Hamburg · v2.0</span>
+  <span id="footer-ts">Zuletzt aktualisiert: —</span>
+</footer>
+
+
+<script>
+// ══════════════════════════════════════════
+//  PEGEL
+// ══════════════════════════════════════════
+let pegelChart = null;
+
+function getChartColors() {
+  return {
+    grid:  '#e8e8e4',
+    tick:  '#a8a8a2',
+    accent: '#0066ff',
+    accentFill0: 'rgba(0,102,255,0.10)',
+    accentFill1: 'rgba(0,102,255,0)',
+    gold:  '#ca8a04',
+    goldFill0: 'rgba(202,138,4,0.12)',
+    red:   '#dc2626',
+    green: '#16a34a',
+    orange:'#f59e0b',
+    tooltipBg: '#ffffff',
+    tooltipBorder: '#e4e4e0',
+    tooltipTitle: '#a8a8a2',
+    tooltipBody: '#1a1a18',
+  };
+}
+
+
+function chartOptions(extra = {}) {
+  const c = getChartColors();
+  return {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: c.tooltipBg,
+        borderColor: c.tooltipBorder, borderWidth: 1,
+        titleColor: c.tooltipTitle, bodyColor: c.tooltipBody,
+        bodyFont: { family: 'DM Mono', size: 12 },
+        ...extra.tooltip,
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: c.grid, drawBorder: false },
+        ticks: { color: c.tick, font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 8, maxRotation: 0 },
+      },
+      y: {
+        grid: { color: c.grid, drawBorder: false },
+        ticks: { color: c.tick, font: { family: 'DM Mono', size: 10 }, ...extra.yTicks },
+      },
+      ...extra.scales,
+    }
+  };
+}
+
+async function loadPegel() {
+  const badge = document.getElementById('pegel-badge');
+  badge.textContent = 'Laden…'; badge.className = 'badge badge-idle';
+  document.getElementById('pegel-error').innerHTML = '';
+
+  // Hamburg-Harburg Station: Pegelnummer 5952025, PNP = -5,015 m NHN
+  // UUID wird per Stations-API resolved und in sessionStorage gecacht
+  const FALLBACK_UUID = 'b97db2fe-82ff-4bde-a73b-f087a3b0f9c4'; // bekannte UUID (falls Resolver fehlschlägt)
+  let uuid = sessionStorage.getItem('harburg_uuid');
+
+  try {
+    if (!uuid) {
+      try {
+        const stRes = await fetch('https://pegelonline.wsv.de/webservices/rest-api/v2/stations.json');
+        if (stRes.ok) {
+          const stations = await stRes.json();
+          const harburg = stations.find(s =>
+            s.shortname === 'HAMBURG-HARBURG' ||
+            s.longname === 'HAMBURG-HARBURG' ||
+            (s.number && String(s.number) === '5952025')
+          );
+          if (harburg && harburg.uuid) {
+            uuid = harburg.uuid;
+            sessionStorage.setItem('harburg_uuid', uuid);
+          }
+        }
+      } catch(e) { /* fallback unten */ }
+      if (!uuid) uuid = FALLBACK_UUID;
+    }
+
+    const url = `https://pegelonline.wsv.de/webservices/rest-api/v2/stations/${uuid}/W/measurements.csv?contentType=text/plain&start=P2D`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const lines = text.trim().split('\n').filter(l => /^\d{4}/.test(l.trim()));
+    if (!lines.length) throw new Error('Keine Messwerte');
+    const pairs = lines.map(l => {
+      const [ts, val] = l.split(';');
+      return { ts: new Date(ts.trim()), val: parseFloat(val.trim()) };
+    }).filter(p => !isNaN(p.val));
+    if (!pairs.length) throw new Error('Ungültige Daten');
+
+    // Convert cm PNP → m NHN (Hamburg-Harburg: PNP = -5,015 m NHN)
+    const PNP_OFFSET = -5.015;
+    const toNHN = cm => ((cm / 100) + PNP_OFFSET).toFixed(2);
+
+    const vals = pairs.map(p => p.val);
+    const max = Math.max(...vals), min = Math.min(...vals);
+    const latest = pairs[pairs.length-1].val;
+    const prev   = pairs[pairs.length-2]?.val ?? latest;
+    const diff   = latest - prev;
+
+    // Mini stats
+    document.getElementById('pegel-now').innerHTML = toNHN(latest) + '<span>m NHN</span>';
+    document.getElementById('pegel-max').innerHTML = toNHN(max) + '<span>m NHN</span>';
+    document.getElementById('pegel-min').innerHTML = toNHN(min) + '<span>m NHN</span>';
+
+    const trendEl = document.getElementById('pegel-trend');
+    if (diff > 2)       trendEl.innerHTML = '<span class="t-up">↑</span>';
+    else if (diff < -2) trendEl.innerHTML = '<span class="t-down">↓</span>';
+    else                trendEl.innerHTML = '<span class="t-ok">→</span>';
+
+    badge.textContent = `${toNHN(latest)} m`;
+    badge.className = latest > 700 ? 'badge badge-warn' : 'badge badge-ok';
+
+    // Fill table — show last 48 entries (newest first)
+    const tbody = document.getElementById('pegel-tbody');
+    const tableRows = [...pairs].reverse().slice(0, 96);
+    tbody.innerHTML = tableRows.map((p, i) => {
+      const prev2 = tableRows[i + 1];
+      const d = prev2 ? p.val - prev2.val : 0;
+      const trend = d > 3 ? '<span class="t-up">↑</span>' : d < -3 ? '<span class="t-down">↓</span>' : '<span class="t-ok">→</span>';
+      const date = p.ts.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'2-digit'});
+      const time = p.ts.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+      return `<tr>
+        <td>${date}</td>
+        <td>${time}</td>
+        <td>${toNHN(p.val)} m</td>
+        <td>${trend}</td>
+      </tr>`;
+    }).join('');
+
+    const step = Math.max(1, Math.floor(pairs.length / 60));
+    const s = pairs.filter((_,i) => i % step === 0);
+    renderPegelChart(
+      s.map(p => p.ts.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})),
+      s.map(p => (p.val / 100) + PNP_OFFSET), false
+    );
+  } catch(e) {
+    badge.textContent = 'Demo'; badge.className = 'badge badge-warn';
+    document.getElementById('pegel-error').innerHTML = `<div class="err-msg">⚠ ${e.message} — Demo-Daten werden angezeigt. CORS-Proxy für Live-Betrieb nötig.</div>`;
+    renderPegelFallback();
+  }
+}
+
+function renderPegelChart(labels, data, isDemo) {
+  const ctx = document.getElementById('pegel-chart').getContext('2d');
+  const c = getChartColors();
+  const color = isDemo ? c.gold : c.accent;
+  const fill0 = isDemo ? c.goldFill0 : c.accentFill0;
+  const fill1 = isDemo ? c.goldFill1 : c.accentFill1;
+  if (pegelChart) pegelChart.destroy();
+  pegelChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data, borderColor: color, borderWidth: 1.5,
+        pointRadius: 0,
+        fill: true,
+        backgroundColor: ctx2 => {
+          const g = ctx2.chart.ctx.createLinearGradient(0,0,0,160);
+          g.addColorStop(0, fill0); g.addColorStop(1, fill1); return g;
+        },
+        tension: 0.35,
+      }]
+    },
+    options: {
+      ...chartOptions({ yTicks: { callback: v => v.toFixed(2) + ' m' } }),
+      animation: { duration: 400 }
+    }
+  });
+}
+
+function renderPegelFallback() {
+  const now = Date.now();
+  const pairs = [];
+  for (let i = 288; i >= 0; i--) {
+    const t = now - i * 10 * 60 * 1000;
+    const h = 350 + 300 * Math.sin((t/(1000*60*745)) * Math.PI * 2) + (Math.random()*8-4);
+    pairs.push({ ts: new Date(t), val: Math.round(h) });
+  }
+  const vals = pairs.map(p => p.val);
+  document.getElementById('pegel-now').innerHTML = ((vals[vals.length-1]/100)-5.015).toFixed(2) + '<span>m NHN</span>';
+  document.getElementById('pegel-max').innerHTML = ((Math.max(...vals)/100)-5.015).toFixed(2) + '<span>m NHN</span>';
+  document.getElementById('pegel-min').innerHTML = ((Math.min(...vals)/100)-5.015).toFixed(2) + '<span>m NHN</span>';
+  document.getElementById('pegel-trend').innerHTML = '<span class="t-up">↑</span>';
+  document.getElementById('pegel-badge').textContent = 'Demo';
+  // Demo table
+  const tbody = document.getElementById('pegel-tbody');
+  tbody.innerHTML = pairs.slice(-20).reverse().map(p => {
+    const d = `${p.ts.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'})}`;
+    const t = `${p.ts.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`;
+    return `<tr><td>${d}</td><td>${t}</td><td>${((p.val/100)-5.015).toFixed(2)} m</td><td><span class="t-ok">→</span></td></tr>`;
+  }).join('');
+
+  const step = Math.max(1, Math.floor(pairs.length/60));
+  const s = pairs.filter((_,i) => i % step === 0);
+  renderPegelChart(s.map(p => p.ts.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})), s.map(p=>(p.val/100)-5.015), true);
+}
+
+// ══════════════════════════════════════════
+//  BRÜCKEN (Mock)
+// ══════════════════════════════════════════
+const BRUECKEN_MOCK = [
+  { name:'Köhlbrandbrücke',          status:'open',       detail:'Normal geöffnet · Letzte Prüfung 06:00' },
+  { name:'Reiherstiegklappbrücke',    status:'closed',     detail:'Sperrung bis ca. 14:45 · Schiffspassage' },
+  { name:'Kattwykbrücke',             status:'restricted', detail:'Eingeschränkt · Wartungsarbeiten' },
+  { name:'Freihafen-Elbbrücke',       status:'open',       detail:'Normal geöffnet' },
+  { name:'Harburger Schloßbrücke',    status:'open',       detail:'Normal geöffnet' },
+];
+
+function renderBruecken(data) {
+  const sm = { open:['ok','ok','Offen'], closed:['err','err','Gesperrt'], restricted:['warn','warn','Eingeschränkt'] };
+  document.getElementById('bruecken-list').innerHTML = data.map(b => {
+    const [dc, tc, lbl] = sm[b.status] || sm.open;
+    return `<div class="bruecke">
+      <div class="b-dot ${dc}"></div>
+      <div class="b-info">
+        <div class="b-name">${b.name}</div>
+        <div class="b-detail">${b.detail}</div>
+      </div>
+      <div class="b-tag ${tc}">${lbl}</div>
+    </div>`;
+  }).join('');
+
+  const warn = data.filter(b => b.status !== 'open').length;
+  const badge = document.getElementById('bruecken-badge');
+  if (!warn) { badge.textContent='Alle frei'; badge.className='badge badge-ok'; }
+  else if (data.some(b=>b.status==='closed')) { badge.textContent=`${warn} Problem${warn>1?'e':''}`; badge.className='badge badge-err'; }
+  else { badge.textContent=`${warn} Warnung`; badge.className='badge badge-warn'; }
+}
+
+// ══════════════════════════════════════════
+//  WETTER
+// ══════════════════════════════════════════
+const WMO = {
+  0:'Klar',1:'Überwiegend klar',2:'Teilweise bewölkt',3:'Bedeckt',
+  45:'Nebel',48:'Reifnebel',51:'Leichter Nieselregen',53:'Nieselregen',55:'Starker Nieselregen',
+  61:'Leichter Regen',63:'Regen',65:'Starker Regen',71:'Leichter Schnee',73:'Schnee',75:'Starker Schnee',
+  80:'Regenschauer',81:'Starke Schauer',82:'Heftige Schauer',95:'Gewitter',96:'Gewitter m. Hagel',99:'Schweres Gewitter',
+};
+const WMO_I = {
+  0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',
+  71:'🌨',73:'🌨',75:'❄️',80:'🌦',81:'🌧',82:'⛈',95:'⛈',96:'⛈',99:'⛈',
+};
+
+async function loadWetter() {
+  const badge = document.getElementById('wetter-badge');
+  badge.textContent='Laden…'; badge.className='badge badge-idle';
+  try {
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=53.454&longitude=9.989&current=temperature_2m,wind_speed_10m,weather_code,precipitation');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const j = await res.json(); const c = j.current;
+    document.getElementById('w-temp').textContent = Math.round(c.temperature_2m);
+    document.getElementById('w-wind').textContent = Math.round(c.wind_speed_10m);
+    document.getElementById('w-prec').textContent = c.precipitation.toFixed(1);
+    document.getElementById('w-code').textContent = c.weather_code;
+    document.getElementById('w-icon').textContent = WMO_I[c.weather_code] || '🌡';
+    document.getElementById('w-desc').textContent = WMO[c.weather_code] || 'Unbekannt';
+    badge.textContent = `${Math.round(c.temperature_2m)}°C`; badge.className='badge badge-ok';
+  } catch(e) {
+    badge.textContent='Fehler'; badge.className='badge badge-err';
+    document.getElementById('wetter-error').innerHTML=`<div class="err-msg">⚠ Wetterdaten nicht verfügbar</div>`;
+  }
+}
+
+let radarOpen = true;
+function toggleRadar() {
+  radarOpen = !radarOpen;
+  document.getElementById('radar-frame').classList.toggle('open', radarOpen);
+  document.getElementById('radar-btn').innerHTML = radarOpen ? '🌊 Radar ausblenden' : '🌊 Windy Radar anzeigen';
+  document.getElementById('radar-frame').classList.toggle('open', radarOpen);
+}
+
+// ══════════════════════════════════════════
+//  OSM MAP + TOMTOM LIVE TRAFFIC
+// ══════════════════════════════════════════
+let osmMap = null;
+let baseTileLayer = null;
+let trafficFlowLayer = null;
+let trafficIncidentLayer = null;
+let incidentMarkerLayer = null;  // klickbare Marker mit Popups (zusätzlich zu den TomTom-Tiles)
+let tomtomKey = '';
+let flowVisible = false;
+let incidentVisible = false;
+let markersVisible = false;
+let showFutureIncidents = true;  // zeigt geplante zukünftige Vorfälle; togglebar via Button
+
+const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const TILE_ATTR  = '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> · © <a href="https://carto.com/" target="_blank">CARTO</a>';
+
+// TomTom traffic tile URLs
+const TT_FLOW_URL = (key, z, x, y) =>
+  `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/${z}/${x}/${y}.png?key=${key}`;
+const TT_INCIDENT_URL = (key, z, x, y) =>
+  `https://api.tomtom.com/traffic/map/4/tile/incidents/s3/${z}/${x}/${y}.png?key=${key}`;
+
+// Canvas-based TileLayer that fetches via fetch() to bypass tracking prevention
+// Tracking blockers block <img src="api.tomtom.com"> but allow fetch() with CORS headers
+function createCanvasTileLayer(urlFn, key, options) {
+  return L.GridLayer.extend({
+    options: Object.assign({ tileSize: 256, opacity: 0.85, maxZoom: 22 }, options),
+
+    createTile(coords, done) {
+      const tile = document.createElement('canvas');
+      const size = this.getTileSize();
+      tile.width  = size.x;
+      tile.height = size.y;
+      tile.style.opacity = this.options.opacity;
+
+      const url = urlFn(key, coords.z, coords.x, coords.y);
+      const ctx = tile.getContext('2d');
+
+      fetch(url, {
+          mode: 'cors',
+          cache: 'no-cache',
+          referrerPolicy: 'no-referrer'
+        })
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.blob();
+        })
+        .then(blob => {
+          const img = new Image();
+          img.onload = () => {
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(img.src);
+            done(null, tile);
+            // Signal success on first tile
+            if (!this._firstTileLoaded) {
+              this._firstTileLoaded = true;
+              this.fire('firsttileload');
+            }
+          };
+          img.onerror = () => done(new Error('img decode failed'), tile);
+          img.src = URL.createObjectURL(blob);
+        })
+        .catch(err => {
+          this.fire('tilefetcherror', { error: err });
+          done(err, tile); // silent fail — transparent tile
+        });
+
+      return tile;
+    }
+  });
+}
+
+function initMap() {
+  if (osmMap) return;
+
+  osmMap = L.map('osm-map', {
+    center: [53.527, 9.998],
+    zoom: 13,
+    zoomControl: true,
+    attributionControl: true,
+  });
+  osmMap.attributionControl.setPrefix(false);
+
+  baseTileLayer = L.tileLayer(TILE_LIGHT, {
+    attribution: TILE_ATTR, maxZoom: 19,
+  }).addTo(osmMap);
+
+  // ── Points of interest — Fokus Reiherstiegschleuse + A1-Elbbrücken
+  const pois = [
+    { lat:53.5292, lng:9.9578, icon:'⚙️', name:'Reiherstiegschleuse',  type:'lock' },
+    { lat:53.5236, lng:10.0385,icon:'🛣',  name:'A1 Elbbrücken',        type:'highway' },
+    { lat:53.5441, lng:9.9683, icon:'⚓', name:'Hamburger Hafen',       type:'port' },
+    { lat:53.5439, lng:9.9552, icon:'🌉', name:'Köhlbrandbrücke',       type:'bridge' },
+    { lat:53.5367, lng:9.9738, icon:'🌉', name:'Kattwykbrücke',         type:'bridge' },
+    { lat:53.5463, lng:10.006, icon:'🎵', name:'Elbphilharmonie',       type:'poi' },
+    { lat:53.5499, lng:9.9840, icon:'🏭', name:'Speicherstadt',         type:'poi' },
+    { lat:53.5312, lng:10.006, icon:'🚢', name:'Blohm+Voss',            type:'industry' },
+  ];
+  pois.forEach(p => {
+    const col = p.type==='bridge' ? '#ca8a04'
+             : p.type==='port'    ? 'var(--accent,#0066ff)'
+             : p.type==='lock'    ? '#16a34a'
+             : p.type==='highway' ? '#dc2626'
+             : '#6b6b66';
+    const ic = L.divIcon({
+      html: `<div style="background:white;border:1.5px solid ${col};border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.18);cursor:pointer">${p.icon}</div>`,
+      iconSize:[26,26], iconAnchor:[13,13], className:'',
+    });
+    L.marker([p.lat,p.lng],{icon:ic})
+      .bindPopup(`<b style="font-family:'DM Sans',sans-serif;font-size:13px">${p.icon} ${p.name}</b>`)
+      .addTo(osmMap);
+  });
+
+  // ── Harbour polygon
+  L.polygon([[53.558,9.940],[53.558,10.020],[53.522,10.025],[53.518,9.938]], {
+    color:'#0066ff', weight:1.5, fillColor:'#0066ff', fillOpacity:0.04, dashArray:'4 4',
+  }).bindPopup('<b>Hamburger Hafen</b>').addTo(osmMap);
+
+  // ── Elbe river
+  L.polyline([[53.518,9.850],[53.520,9.900],[53.515,9.940],[53.514,9.980],[53.510,10.030],[53.505,10.080]],
+    { color:'#4d94ff', weight:3, opacity:0.3 }).bindPopup('Elbe').addTo(osmMap);
+
+  // Default key — auto-activate traffic on load
+  const DEFAULT_KEY = 'qGa9XMA5tt54CNmW8Ovn8mDxmVwbfsEi';
+  try {
+    const saved = sessionStorage.getItem('tomtom_key') || DEFAULT_KEY;
+    document.getElementById('tomtom-key-input').value = saved;
+    applyTrafficKey(saved, true);
+  } catch(e) {
+    document.getElementById('tomtom-key-input').value = DEFAULT_KEY;
+    applyTrafficKey(DEFAULT_KEY, true);
+  }
+}
+
+
+function activateTraffic() {
+  const key = document.getElementById('tomtom-key-input').value.trim() || 'qGa9XMA5tt54CNmW8Ovn8mDxmVwbfsEi';
+  applyTrafficKey(key, true);
+  try { sessionStorage.setItem('tomtom_key', key); } catch(e) {}
+}
+
+function applyTrafficKey(key, autoActivate) {
+  tomtomKey = key;
+
+  // Remove old layers
+  if (trafficFlowLayer)     { try { osmMap.removeLayer(trafficFlowLayer); } catch(e){} trafficFlowLayer = null; }
+  if (trafficIncidentLayer) { try { osmMap.removeLayer(trafficIncidentLayer); } catch(e){} trafficIncidentLayer = null; }
+  flowVisible = false; incidentVisible = false;
+
+  // Build canvas-based layers (bypasses tracking prevention)
+  const FlowLayer     = createCanvasTileLayer(TT_FLOW_URL,     key, { opacity: 0.82 });
+  const IncidentLayer = createCanvasTileLayer(TT_INCIDENT_URL, key, { opacity: 0.95 });
+  trafficFlowLayer     = new FlowLayer();
+  trafficIncidentLayer = new IncidentLayer();
+
+  // Status feedback via canvas layer events
+  trafficFlowLayer.on('firsttileload', () => {
+    document.getElementById('traffic-badge').textContent = 'Traffic Live ✓';
+    document.getElementById('traffic-badge').className = 'badge badge-ok';
+  });
+  trafficFlowLayer.on('tilefetcherror', (ev) => {
+    console.warn('TomTom fetch error:', ev.error);
+    document.getElementById('traffic-badge').textContent = ev.error?.message?.includes('403')
+      ? 'Key ungültig (403)' : 'Fetch-Fehler – CORS?';
+    document.getElementById('traffic-badge').className = 'badge badge-err';
+  });
+
+  // Show control buttons
+  document.getElementById('traffic-toggle').style.display   = '';
+  document.getElementById('incident-toggle').style.display  = '';
+  document.getElementById('markers-toggle').style.display   = '';
+  document.getElementById('future-toggle').style.display    = '';
+  document.getElementById('traffic-btn').textContent = '✓ Aktiv';
+  document.getElementById('traffic-btn').classList.add('active');
+  document.getElementById('traffic-badge').textContent = 'Lade Traffic…';
+  document.getElementById('traffic-badge').className = 'badge badge-idle';
+
+  // LayerGroup für klickbare Incident-Marker (wird von loadIncidents befüllt)
+  if (!incidentMarkerLayer) incidentMarkerLayer = L.layerGroup();
+
+  if (autoActivate) {
+    trafficFlowLayer.addTo(osmMap);
+    flowVisible = true;
+    trafficIncidentLayer.addTo(osmMap);
+    incidentVisible = true;
+    incidentMarkerLayer.addTo(osmMap);
+    markersVisible = true;
+    document.getElementById('traffic-toggle').classList.add('on');
+    document.getElementById('incident-toggle').classList.add('on');
+    document.getElementById('markers-toggle').classList.add('on');
+  }
+
+  // Incident-Liste + Marker laden
+  loadIncidents();
+}
+
+function toggleTrafficLayer() {
+  if (!trafficFlowLayer) return;
+  const btn = document.getElementById('traffic-toggle');
+  if (flowVisible) {
+    osmMap.removeLayer(trafficFlowLayer);
+    flowVisible = false;
+    btn.classList.remove('on');
+  } else {
+    trafficFlowLayer.addTo(osmMap);
+    flowVisible = true;
+    btn.classList.add('on');
+  }
+}
+
+function toggleIncidentLayer() {
+  if (!trafficIncidentLayer) return;
+  const btn = document.getElementById('incident-toggle');
+  if (incidentVisible) {
+    osmMap.removeLayer(trafficIncidentLayer);
+    incidentVisible = false;
+    btn.classList.remove('on');
+  } else {
+    trafficIncidentLayer.addTo(osmMap);
+    incidentVisible = true;
+    btn.classList.add('on');
+  }
+}
+
+function toggleMarkersLayer() {
+  if (!incidentMarkerLayer) return;
+  const btn = document.getElementById('markers-toggle');
+  if (markersVisible) {
+    osmMap.removeLayer(incidentMarkerLayer);
+    markersVisible = false;
+    btn.classList.remove('on');
+  } else {
+    incidentMarkerLayer.addTo(osmMap);
+    markersVisible = true;
+    btn.classList.add('on');
+  }
+}
+
+// Blendet zukünftige (geplante) Vorfälle in Liste UND Karten-Markern ein/aus
+function toggleFutureIncidents() {
+  showFutureIncidents = !showFutureIncidents;
+  const btn = document.getElementById('future-toggle');
+  btn.classList.toggle('on', showFutureIncidents);
+  // Liste + Marker neu rendern
+  if (tomtomKey) loadIncidents();
+}
+
+// Verkehrs-Card in Vollbild schalten. Leaflet braucht invalidateSize()
+// damit die Kacheln sich an die neue Größe anpassen.
+function toggleVerkehrFullscreen() {
+  const isOn = document.body.classList.toggle('verkehr-fullscreen');
+  const btn  = document.getElementById('verkehr-expand-btn');
+  if (btn) {
+    btn.textContent = isOn ? '✕' : '⛶';
+    btn.title = isOn ? 'Vollbild beenden' : 'Vollbild';
+  }
+  // Nach dem CSS-Resize muss Leaflet die Kartengröße neu berechnen
+  if (osmMap) {
+    setTimeout(() => osmMap.invalidateSize(), 120);
+  }
+}
+
+// ESC beendet Vollbild
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.body.classList.contains('verkehr-fullscreen')) {
+    toggleVerkehrFullscreen();
+  }
+});
+
+// ══════════════════════════════════════════
+//  INCIDENT-LISTE (TomTom Traffic Incident Details API)
+//  Bounding-Box: Hamburger Hafen (SW→NE)
+//  Quelle: developer.tomtom.com → /traffic/services/5/incidentDetails
+// ══════════════════════════════════════════
+const INCIDENT_BBOX = '9.85,53.40,10.15,53.60';  // minLon,minLat,maxLon,maxLat
+
+// TomTom iconCategory → (Label, Severity-Klasse, Emoji)
+const INCIDENT_CATEGORY = {
+  0:  ['Unbekannt',          0, '⚠'],
+  1:  ['Unfall',             3, '🚨'],
+  2:  ['Nebel',              2, '🌫'],
+  3:  ['Gefahr',             3, '⚠'],
+  4:  ['Regen',              1, '🌧'],
+  5:  ['Glatteis',           3, '❄'],
+  6:  ['Stau',               2, '🚗'],
+  7:  ['Spursperrung',       2, '🚧'],
+  8:  ['Straßensperrung',    3, '🚫'],
+  9:  ['Baustelle',          2, '🚧'],
+  10: ['Wind',               2, '💨'],
+  11: ['Überflutung',        3, '🌊'],
+  12: ['Umleitung',          1, '↪'],
+  13: ['Cluster',            0, '⚠'],
+  14: ['Liegengebliebenes Fzg', 2, '🚙'],
+};
+
+async function loadIncidents() {
+  const listEl  = document.getElementById('incidents-list');
+  const badgeEl = document.getElementById('incidents-badge');
+  if (!listEl || !badgeEl || !tomtomKey) return;
+
+  badgeEl.textContent = 'Laden…';
+  badgeEl.className   = 'badge badge-idle';
+
+  // fields= definiert welche Attribute zurückkommen. Spart Bandbreite.
+  const fields = '{incidents{type,geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,events{description,code,iconCategory},startTime,endTime,from,to,length,delay,roadNumbers}}}';
+  const url = `https://api.tomtom.com/traffic/services/5/incidentDetails?bbox=${INCIDENT_BBOX}&fields=${encodeURIComponent(fields)}&language=de-DE&t=1000&timeValidityFilter=present,future&key=${encodeURIComponent(tomtomKey)}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    let incidents = Array.isArray(data.incidents) ? data.incidents : [];
+
+    if (!incidents.length) {
+      listEl.innerHTML = '<div class="incidents-empty">Keine Meldungen im Hafenbereich</div>';
+      badgeEl.textContent = '0';
+      badgeEl.className   = 'badge badge-ok';
+      // Alte Marker entfernen falls welche da sind
+      if (incidentMarkerLayer) incidentMarkerLayer.clearLayers();
+      return;
+    }
+
+    // Nach Severity absteigend sortieren (magnitudeOfDelay 0=unbekannt .. 4=unbekannt, 3=schwerster Stau)
+    // Aktive Vorfälle zuerst, dann geplante zukünftige.
+    const nowMs = Date.now();
+    incidents.forEach(i => {
+      const startMs = i.properties?.startTime ? new Date(i.properties.startTime).getTime() : null;
+      i._isFuture = !!(startMs && startMs > nowMs);
+    });
+
+    // Zähler vor dem Filter (fürs Badge), damit "3 aktiv · 5 geplant" auch bei ausgeblendet-State stimmt
+    const activeCount = incidents.filter(i => !i._isFuture).length;
+    const futureCount = incidents.length - activeCount;
+
+    // Wenn Toggle "Geplant" aus ist → alle zukünftigen rausfiltern
+    if (!showFutureIncidents) {
+      incidents = incidents.filter(i => !i._isFuture);
+    }
+
+    incidents.sort((a, b) => {
+      // Erst aktive, dann zukünftige
+      if (a._isFuture !== b._isFuture) return a._isFuture ? 1 : -1;
+      // Dann nach Severity
+      const sa = INCIDENT_CATEGORY[a.properties?.iconCategory ?? 0]?.[1] ?? 0;
+      const sb = INCIDENT_CATEGORY[b.properties?.iconCategory ?? 0]?.[1] ?? 0;
+      if (sb !== sa) return sb - sa;
+      // Dann nach delay (nur bei aktiven), bei zukünftigen nach startTime (früheste zuerst)
+      if (a._isFuture) {
+        const astart = new Date(a.properties?.startTime || 0).getTime();
+        const bstart = new Date(b.properties?.startTime || 0).getTime();
+        return astart - bstart;
+      }
+      return (b.properties?.delay ?? 0) - (a.properties?.delay ?? 0);
+    });
+
+    // Marker-Layer leeren und neu aufbauen
+    if (incidentMarkerLayer) incidentMarkerLayer.clearLayers();
+
+    // Severity → Hintergrundfarbe des Markers
+    const SEV_BG = { 0:'#9ca3af', 1:'#22c55e', 2:'#f59e0b', 3:'#ef4444', 4:'#3b82f6' };
+
+    listEl.innerHTML = incidents.map(i => {
+      const p = i.properties || {};
+      const isFuture = i._isFuture;
+      const cat     = INCIDENT_CATEGORY[p.iconCategory ?? 0] || INCIDENT_CATEGORY[0];
+      const [label, sev, icon] = cat;
+      const road    = (p.roadNumbers && p.roadNumbers[0])
+                    || p.from || p.to || 'Unbenannte Straße';
+      const route   = [p.from, p.to].filter(Boolean).join(' → ');
+      const desc    = p.events && p.events[0] && p.events[0].description;
+      const delayMin = p.delay ? Math.round(p.delay / 60) : 0;
+      const lenKm    = p.length ? (p.length / 1000).toFixed(1) : null;
+
+      // Start-/Endzeit formatieren
+      // Format "Do, 16.04. 14:30" für den selben Tag oder "16.04.2026 14:30" für später
+      const formatDt = iso => {
+        if (!iso) return null;
+        const dt = new Date(iso);
+        if (isNaN(dt.getTime())) return null;
+        const pad = n => String(n).padStart(2,'0');
+        const now = new Date();
+        const sameYear = dt.getFullYear() === now.getFullYear();
+        const sameDay  = sameYear && dt.getMonth() === now.getMonth() && dt.getDate() === now.getDate();
+        const weekdays = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+        const time = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+        if (sameDay)  return `heute ${time}`;
+        if (sameYear) return `${weekdays[dt.getDay()]}, ${pad(dt.getDate())}.${pad(dt.getMonth()+1)}. ${time}`;
+        return `${pad(dt.getDate())}.${pad(dt.getMonth()+1)}.${dt.getFullYear()} ${time}`;
+      };
+      const startStr = formatDt(p.startTime);
+      const endStr   = formatDt(p.endTime);
+      // Kurzform für die Liste (nur Datum oder nur Zeit, je nachdem)
+      const timeRange = (startStr || endStr)
+        ? `${startStr ?? '?'} → ${endStr ?? 'offen'}`
+        : null;
+
+      // Koordinaten für Map-Jump holen: erste Koordinate der Linie
+      let lat = null, lon = null;
+      if (i.geometry?.coordinates?.length) {
+        const firstCoord = Array.isArray(i.geometry.coordinates[0][0])
+          ? i.geometry.coordinates[0][0]  // LineString
+          : i.geometry.coordinates[0];     // Point
+        if (Array.isArray(firstCoord)) { lon = firstCoord[0]; lat = firstCoord[1]; }
+      }
+
+      // Marker auf die Karte legen (DivIcon mit Emoji)
+      if (lat != null && lon != null && incidentMarkerLayer) {
+        const bg = SEV_BG[sev] || SEV_BG[0];
+        const futureClass = isFuture ? ' map-marker-future' : '';
+        const html = `<div class="map-marker${futureClass}" style="background:${bg}">${icon}</div>`;
+        const divIcon = L.divIcon({
+          html, className: 'map-marker-wrap',
+          iconSize: [30, 30], iconAnchor: [15, 15],
+        });
+        const popupHtml = `
+          <div style="font-family:var(--mono,monospace);font-size:11px;min-width:200px">
+            <div style="font-weight:700;font-size:13px;margin-bottom:4px">
+              ${label}${isFuture ? ' <span style="background:#dbeafe;color:#1e40af;font-size:9px;padding:1px 6px;border-radius:4px;vertical-align:middle;font-weight:600">GEPLANT</span>' : ''}
+            </div>
+            <div style="color:#555;margin-bottom:6px">${road}</div>
+            ${route && route !== road ? `<div style="color:#888;font-size:10px">${route}</div>` : ''}
+            ${desc ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee;color:#333">${desc}</div>` : ''}
+            ${(startStr || endStr) ? `
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee;color:#333">
+                <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Zeitraum</div>
+                <div><strong>von:</strong> ${startStr ?? '—'}</div>
+                <div><strong>bis:</strong> ${endStr ?? 'offen / nicht bekannt'}</div>
+              </div>` : ''}
+            <div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee;color:#666">
+              ${lenKm ? `<strong>${lenKm} km</strong>` : ''}
+              ${lenKm && delayMin ? ' · ' : ''}
+              ${delayMin ? `+${delayMin} min Verzögerung` : ''}
+            </div>
+          </div>`;
+        L.marker([lat, lon], { icon: divIcon }).bindPopup(popupHtml).addTo(incidentMarkerLayer);
+      }
+
+      const clickHandler = (lat != null && lon != null)
+        ? `onclick="osmMap && osmMap.setView([${lat},${lon}], 15)"`
+        : '';
+
+      // Metadaten rechts: Länge + Verzögerung
+      const metaParts = [];
+      if (lenKm)    metaParts.push(`<strong>${lenKm} km</strong>`);
+      if (delayMin) metaParts.push(`+${delayMin} min`);
+      const meta = metaParts.length ? metaParts.join('<br>') : '—';
+
+      return `<div class="incident-row${isFuture ? ' future' : ''}" ${clickHandler} title="${desc || label}">
+        <div class="incident-icon sev-${sev}${isFuture ? ' future' : ''}">${icon}</div>
+        <div class="incident-main">
+          <div class="incident-road">${road}${isFuture ? ' <span class="future-pill">GEPLANT</span>' : ''}</div>
+          <div class="incident-type">${label}${route && route !== road ? ' · ' + route : ''}</div>
+          ${timeRange ? `<div class="incident-time">🕒 ${timeRange}</div>` : ''}
+        </div>
+        <div class="incident-meta">${meta}</div>
+      </div>`;
+    }).join('');
+
+    badgeEl.textContent = futureCount > 0
+      ? `${activeCount} aktiv · ${futureCount} geplant`
+      : `${activeCount} aktiv`;
+    badgeEl.className   = activeCount > 5 ? 'badge badge-warn' : 'badge badge-ok';
+  } catch (e) {
+    console.warn('TomTom Incidents nicht abrufbar:', e.message);
+    listEl.innerHTML = `<div class="incidents-empty">Meldungen derzeit nicht abrufbar</div>`;
+    badgeEl.textContent = 'Fehler';
+    badgeEl.className   = 'badge badge-warn';
+  }
+}
+
+// ══════════════════════════════════════════
+//  GEZEITEN
+// ══════════════════════════════════════════
+const PNP_NHN = -5.02;
+let gezeitenChart = null;
+
+const BSH_RAW = `H,Do,1,1,1,32,7.11
+N,Do,1,1,8,52,3.55
+H,Do,1,1,14,8,7.34
+N,Do,1,1,21,29,3.58
+H,Fr,2,1,2,42,7.26
+N,Fr,2,1,10,6,3.51
+H,Fr,2,1,15,18,7.35
+N,Fr,2,1,22,37,3.55
+H,Sa,3,1,3,45,7.35
+N,Sa,3,1,11,14,3.43
+H,Sa,3,1,16,22,7.33
+N,Sa,3,1,23,36,3.52
+H,So,4,1,4,40,7.45
+N,So,4,1,12,14,3.40
+H,So,4,1,17,18,7.32
+N,Mo,5,1,0,27,3.52
+H,Mo,5,1,5,30,7.57
+N,Mo,5,1,13,7,3.41
+H,Mo,5,1,18,10,7.31
+N,Di,6,1,1,16,3.52
+H,Di,6,1,6,19,7.66
+N,Di,6,1,13,58,3.43
+H,Di,6,1,18,58,7.26
+N,Mi,7,1,2,3,3.50
+H,Mi,7,1,7,5,7.67
+N,Mi,7,1,14,44,3.42
+H,Mi,7,1,19,43,7.21
+N,Do,8,1,2,45,3.50
+H,Do,8,1,7,47,7.62
+N,Do,8,1,15,23,3.44
+H,Do,8,1,20,23,7.16
+N,Fr,9,1,3,22,3.53
+H,Fr,9,1,8,26,7.55
+N,Fr,9,1,15,59,3.49
+H,Fr,9,1,21,0,7.10
+N,Sa,10,1,3,59,3.57
+H,Sa,10,1,9,5,7.46
+N,Sa,10,1,16,34,3.54
+H,Sa,10,1,21,37,7.04
+N,So,11,1,4,37,3.61
+H,So,11,1,9,45,7.37
+N,So,11,1,17,9,3.61
+H,So,11,1,22,15,7.00
+N,Mo,12,1,5,16,3.66
+H,Mo,12,1,10,30,7.28
+N,Mo,12,1,17,49,3.68
+H,Mo,12,1,23,1,6.96
+N,Di,13,1,6,7,3.69
+H,Di,13,1,11,27,7.17
+N,Di,13,1,18,43,3.72
+H,Mi,14,1,0,2,6.94
+N,Mi,14,1,7,16,3.68
+H,Mi,14,1,12,37,7.06
+N,Mi,14,1,19,52,3.71
+H,Do,15,1,1,13,6.98
+N,Do,15,1,8,32,3.65
+H,Do,15,1,13,50,7.04
+N,Do,15,1,21,4,3.66
+H,Fr,16,1,2,21,7.08
+N,Fr,16,1,9,44,3.60
+H,Fr,16,1,14,56,7.07
+N,Fr,16,1,22,8,3.60
+H,Sa,17,1,3,19,7.17
+N,Sa,17,1,10,44,3.52
+H,Sa,17,1,15,51,7.11
+N,Sa,17,1,23,1,3.52
+H,So,18,1,4,7,7.24
+N,So,18,1,11,33,3.45
+H,So,18,1,16,37,7.14
+N,So,18,1,23,45,3.48
+H,Mo,19,1,4,47,7.33
+N,Mo,19,1,12,14,3.43
+H,Mo,19,1,17,16,7.18
+N,Di,20,1,0,24,3.49
+H,Di,20,1,5,25,7.40
+N,Di,20,1,12,54,3.42
+H,Di,20,1,17,51,7.21
+N,Mi,21,1,1,0,3.48
+H,Mi,21,1,6,2,7.46
+N,Mi,21,1,13,32,3.41
+H,Mi,21,1,18,24,7.23
+N,Do,22,1,1,33,3.47
+H,Do,22,1,6,36,7.50
+N,Do,22,1,14,7,3.41
+H,Do,22,1,18,55,7.22
+N,Fr,23,1,2,5,3.48
+H,Fr,23,1,7,8,7.51
+N,Fr,23,1,14,39,3.42
+H,Fr,23,1,19,23,7.19
+N,Sa,24,1,2,36,3.51
+H,Sa,24,1,7,38,7.50
+N,Sa,24,1,15,8,3.43
+H,Sa,24,1,19,51,7.15
+N,So,25,1,3,7,3.54
+H,So,25,1,8,7,7.47
+N,So,25,1,15,35,3.46
+H,So,25,1,20,18,7.10
+N,Mo,26,1,3,39,3.57
+H,Mo,26,1,8,35,7.41
+N,Mo,26,1,16,1,3.49
+H,Mo,26,1,20,46,7.06
+N,Di,27,1,4,13,3.60
+H,Di,27,1,9,4,7.34
+N,Di,27,1,16,27,3.52
+H,Di,27,1,21,15,7.02
+N,Mi,28,1,4,51,3.62
+H,Mi,28,1,9,34,7.26
+N,Mi,28,1,16,55,3.54
+H,Mi,28,1,21,48,6.99
+N,Do,29,1,5,33,3.64
+H,Do,29,1,10,8,7.19
+N,Do,29,1,17,26,3.55
+H,Do,29,1,22,27,6.98
+N,Fr,30,1,6,21,3.65
+H,Fr,30,1,10,47,7.13
+N,Fr,30,1,18,3,3.56
+H,Fr,30,1,23,12,7.00
+N,Sa,31,1,7,16,3.64
+H,Sa,31,1,11,33,7.09
+N,Sa,31,1,18,47,3.58
+H,Sa,31,1,23,59,7.03
+N,So,1,2,8,18,3.61
+H,So,1,2,12,23,7.07
+N,So,1,2,19,37,3.59
+H,Mo,2,2,0,53,7.09
+N,Mo,2,2,9,25,3.56
+H,Mo,2,2,13,18,7.07
+N,Mo,2,2,20,32,3.60
+H,Di,3,2,1,53,7.18
+N,Di,3,2,10,37,3.48
+H,Di,3,2,14,18,7.10
+N,Di,3,2,21,34,3.61
+H,Mi,4,2,2,55,7.29
+N,Mi,4,2,11,43,3.40
+H,Mi,4,2,15,21,7.14
+N,Mi,4,2,22,35,3.62
+H,Do,5,2,3,53,7.40
+N,Do,5,2,12,41,3.35
+H,Do,5,2,16,22,7.16
+N,Do,5,2,23,32,3.64
+H,Fr,6,2,4,46,7.49
+N,Fr,6,2,13,33,3.32
+H,Fr,6,2,17,18,7.15
+N,Sa,7,2,0,25,3.66
+H,Sa,7,2,5,34,7.55
+N,Sa,7,2,14,20,3.31
+H,Sa,7,2,18,10,7.13
+N,So,8,2,1,14,3.67
+H,So,8,2,6,18,7.57
+N,So,8,2,15,5,3.31
+H,So,8,2,18,59,7.09
+N,Mo,9,2,2,1,3.68
+H,Mo,9,2,7,0,7.54
+N,Mo,9,2,15,47,3.33
+H,Mo,9,2,19,46,7.04
+N,Di,10,2,2,46,3.68
+H,Di,10,2,7,41,7.47
+N,Di,10,2,16,27,3.36
+H,Di,10,2,20,31,7.00
+N,Mi,11,2,3,30,3.68
+H,Mi,11,2,8,22,7.38
+N,Mi,11,2,17,6,3.39
+H,Mi,11,2,21,17,6.96
+N,Do,12,2,4,13,3.68
+H,Do,12,2,9,3,7.29
+N,Do,12,2,17,44,3.41
+H,Do,12,2,22,4,6.93
+N,Fr,13,2,4,57,3.68
+H,Fr,13,2,9,47,7.21
+N,Fr,13,2,18,24,3.44
+H,Fr,13,2,22,55,6.91
+N,Sa,14,2,5,43,3.67
+H,Sa,14,2,10,34,7.14
+N,Sa,14,2,19,8,3.47
+H,Sa,14,2,23,50,6.92
+N,So,15,2,6,33,3.66
+H,So,15,2,11,27,7.11
+N,So,15,2,19,58,3.49
+H,Mo,16,2,0,50,6.95
+N,Mo,16,2,7,28,3.62
+H,Mo,16,2,12,26,7.10
+N,Mo,16,2,20,53,3.51
+H,Di,17,2,1,56,7.02
+N,Di,17,2,8,30,3.56
+H,Di,17,2,13,30,7.12
+N,Di,17,2,21,52,3.52
+H,Mi,18,2,3,1,7.10
+N,Mi,18,2,9,33,3.50
+H,Mi,18,2,14,33,7.15
+N,Mi,18,2,22,47,3.53
+H,Do,19,2,3,58,7.17
+N,Do,19,2,10,29,3.44
+H,Do,19,2,15,28,7.19
+N,Do,19,2,23,35,3.52
+H,Fr,20,2,4,47,7.23
+N,Fr,20,2,11,18,3.40
+H,Fr,20,2,16,17,7.21
+N,Sa,21,2,0,19,3.51
+H,Sa,21,2,5,33,7.28
+N,Sa,21,2,12,5,3.36
+H,Sa,21,2,17,4,7.22
+N,So,22,2,1,2,3.51
+H,So,22,2,6,18,7.32
+N,So,22,2,12,51,3.33
+H,So,22,2,17,50,7.21
+N,Mo,23,2,1,46,3.52
+H,Mo,23,2,7,1,7.34
+N,Mo,23,2,13,34,3.33
+H,Mo,23,2,18,34,7.18
+N,Di,24,2,2,30,3.54
+H,Di,24,2,7,43,7.35
+N,Di,24,2,14,14,3.35
+H,Di,24,2,19,16,7.13
+N,Mi,25,2,3,13,3.57
+H,Mi,25,2,8,23,7.33
+N,Mi,25,2,14,51,3.38
+H,Mi,25,2,19,57,7.07
+N,Do,26,2,3,56,3.60
+H,Do,26,2,9,2,7.29
+N,Do,26,2,15,27,3.41
+H,Do,26,2,20,38,7.01
+N,Fr,27,2,4,40,3.63
+H,Fr,27,2,9,43,7.23
+N,Fr,27,2,16,4,3.44
+H,Fr,27,2,21,22,6.96
+N,Sa,28,2,5,26,3.65
+H,Sa,28,2,10,26,7.17
+N,Sa,28,2,16,43,3.46
+H,Sa,28,2,22,10,6.94
+N,So,1,3,6,17,3.65
+H,So,1,3,11,13,7.11
+N,So,1,3,17,27,3.48
+H,So,1,3,23,4,6.95
+N,Mo,2,3,7,13,3.62
+H,Mo,2,3,12,5,7.08
+N,Mo,2,3,18,17,3.50
+H,Mo,2,3,23,59,6.99
+N,Di,3,3,8,14,3.57
+H,Di,3,3,13,4,7.07
+N,Di,3,3,19,14,3.52
+H,Mi,4,3,1,1,7.07
+N,Mi,4,3,9,20,3.48
+H,Mi,4,3,14,6,7.09
+N,Mi,4,3,20,18,3.55
+H,Do,5,3,2,4,7.17
+N,Do,5,3,10,23,3.39
+H,Do,5,3,15,11,7.12
+N,Do,5,3,21,22,3.58
+H,Fr,6,3,3,5,7.26
+N,Fr,6,3,11,22,3.33
+H,Fr,6,3,16,10,7.14
+N,Fr,6,3,22,20,3.60
+H,Sa,7,3,3,58,7.32
+N,Sa,7,3,12,15,3.29
+H,Sa,7,3,17,3,7.14
+N,Sa,7,3,23,13,3.61
+H,So,8,3,4,46,7.36
+N,So,8,3,13,3,3.27
+H,So,8,3,17,52,7.12
+N,Mo,9,3,0,3,3.62
+H,Mo,9,3,5,30,7.36
+N,Mo,9,3,13,48,3.27
+H,Mo,9,3,18,38,7.08
+N,Di,10,3,0,51,3.63
+H,Di,10,3,6,12,7.33
+N,Di,10,3,14,30,3.28
+H,Di,10,3,19,21,7.02
+N,Mi,11,3,1,37,3.64
+H,Mi,11,3,6,53,7.28
+N,Mi,11,3,15,10,3.29
+H,Mi,11,3,20,3,6.97
+N,Do,12,3,2,22,3.65
+H,Do,12,3,7,33,7.21
+N,Do,12,3,15,49,3.31
+H,Do,12,3,20,45,6.91
+N,Fr,13,3,3,6,3.65
+H,Fr,13,3,8,14,7.14
+N,Fr,13,3,16,28,3.33
+H,Fr,13,3,21,29,6.87
+N,Sa,14,3,3,51,3.65
+H,Sa,14,3,8,56,7.08
+N,Sa,14,3,17,8,3.34
+H,Sa,14,3,22,15,6.84
+N,So,15,3,4,37,3.64
+H,So,15,3,9,42,7.05
+N,So,15,3,17,51,3.36
+H,So,15,3,23,7,6.84
+N,Mo,16,3,5,27,3.61
+H,Mo,16,3,10,32,7.04
+N,Mo,16,3,18,39,3.38
+H,Mo,16,3,23,59,6.87
+N,Di,17,3,6,19,3.58
+H,Di,17,3,11,28,7.04
+N,Di,17,3,19,31,3.39
+H,Mi,18,3,0,59,6.92
+N,Mi,18,3,7,15,3.53
+H,Mi,18,3,12,28,7.06
+N,Mi,18,3,20,25,3.41
+H,Do,19,3,2,0,6.98
+N,Do,19,3,8,14,3.48
+H,Do,19,3,13,29,7.08
+N,Do,19,3,21,19,3.42
+H,Fr,20,3,2,59,7.05
+N,Fr,20,3,9,9,3.44
+H,Fr,20,3,14,26,7.10
+N,Fr,20,3,22,10,3.43
+H,Sa,21,3,3,52,7.10
+N,Sa,21,3,9,59,3.41
+H,Sa,21,3,15,18,7.11
+N,Sa,21,3,22,57,3.44
+H,So,22,3,4,40,7.13
+N,So,22,3,10,47,3.39
+H,So,22,3,16,7,7.10
+N,So,22,3,23,42,3.45
+H,Mo,23,3,5,26,7.15
+N,Mo,23,3,11,33,3.38
+H,Mo,23,3,16,54,7.08
+N,Di,24,3,0,25,3.46
+H,Di,24,3,6,9,7.15
+N,Di,24,3,12,17,3.38
+H,Di,24,3,17,39,7.05
+N,Mi,25,3,1,8,3.48
+H,Mi,25,3,6,51,7.14
+N,Mi,25,3,12,59,3.40
+H,Mi,25,3,18,22,7.01
+N,Do,26,3,1,50,3.50
+H,Do,26,3,7,32,7.11
+N,Do,26,3,13,40,3.41
+H,Do,26,3,19,5,6.96
+N,Fr,27,3,2,33,3.52
+H,Fr,27,3,8,12,7.07
+N,Fr,27,3,14,20,3.43
+H,Fr,27,3,19,48,6.91
+N,Sa,28,3,3,15,3.54
+H,Sa,28,3,8,53,7.02
+N,Sa,28,3,15,0,3.44
+H,Sa,28,3,20,32,6.87
+N,So,29,3,3,58,3.57
+H,So,29,3,9,36,6.98
+N,So,29,3,15,41,3.46
+H,So,29,3,21,18,6.85
+N,Mo,30,3,4,43,3.58
+H,Mo,30,3,10,22,6.95
+N,Mo,30,3,16,25,3.47
+H,Mo,30,3,22,8,6.85
+N,Di,31,3,5,30,3.59
+H,Di,31,3,11,11,6.94
+N,Di,31,3,17,12,3.48
+H,Di,31,3,23,1,6.88
+N,Mi,1,4,6,20,3.57
+H,Mi,1,4,12,5,6.95
+N,Mi,1,4,18,5,3.50
+H,Mi,1,4,23,56,6.95
+N,Do,2,4,7,15,3.52
+H,Do,2,4,13,2,6.98
+N,Do,2,4,19,4,3.51
+H,Fr,3,4,0,54,7.03
+N,Fr,3,4,8,13,3.45
+H,Fr,3,4,14,1,7.02
+N,Fr,3,4,20,7,3.53
+H,Sa,4,4,1,57,7.12
+N,Sa,4,4,9,13,3.38
+H,Sa,4,4,15,2,7.07
+N,Sa,4,4,21,8,3.55
+H,So,5,4,2,55,7.19
+N,So,5,4,10,9,3.33
+H,So,5,4,15,58,7.10
+N,So,5,4,22,4,3.57
+H,Mo,6,4,3,47,7.22
+N,Mo,6,4,11,0,3.30
+H,Mo,6,4,16,49,7.10
+N,Mo,6,4,22,56,3.59
+H,Di,7,4,4,34,7.22
+N,Di,7,4,11,48,3.29
+H,Di,7,4,17,37,7.08
+N,Di,7,4,23,45,3.61
+H,Mi,8,4,5,19,7.19
+N,Mi,8,4,12,33,3.28
+H,Mi,8,4,18,22,7.04
+N,Do,9,4,0,31,3.62
+H,Do,9,4,6,2,7.14
+N,Do,9,4,13,15,3.29
+H,Do,9,4,19,5,6.98
+N,Fr,10,4,1,16,3.63
+H,Fr,10,4,6,44,7.08
+N,Fr,10,4,13,55,3.30
+H,Fr,10,4,19,47,6.91
+N,Sa,11,4,2,0,3.63
+H,Sa,11,4,7,26,7.02
+N,Sa,11,4,14,34,3.31
+H,Sa,11,4,20,29,6.84
+N,So,12,4,2,43,3.63
+H,So,12,4,8,8,6.97
+N,So,12,4,15,13,3.32
+H,So,12,4,21,12,6.78
+N,Mo,13,4,3,26,3.62
+H,Mo,13,4,8,53,6.94
+N,Mo,13,4,15,53,3.33
+H,Mo,13,4,21,58,6.75
+N,Di,14,4,4,10,3.61
+H,Di,14,4,9,39,6.93
+N,Di,14,4,16,36,3.34
+H,Di,14,4,22,47,6.74
+N,Mi,15,4,4,56,3.59
+H,Mi,15,4,10,29,6.93
+N,Mi,15,4,17,22,3.34
+H,Mi,15,4,23,39,6.76
+N,Do,16,4,5,46,3.56
+H,Do,16,4,11,23,6.95
+N,Do,16,4,18,12,3.35
+H,Fr,17,4,0,35,6.80
+N,Fr,17,4,6,39,3.52
+H,Fr,17,4,12,21,6.98
+N,Fr,17,4,19,7,3.36
+H,Sa,18,4,1,35,6.86
+N,Sa,18,4,7,35,3.46
+H,Sa,18,4,13,22,7.01
+N,Sa,18,4,20,4,3.37
+H,So,19,4,2,35,6.93
+N,So,19,4,8,32,3.41
+H,So,19,4,14,22,7.04
+N,So,19,4,21,0,3.38
+H,Mo,20,4,3,31,7.00
+N,Mo,20,4,9,26,3.37
+H,Mo,20,4,15,18,7.05
+N,Mo,20,4,21,51,3.40
+H,Di,21,4,4,22,7.04
+N,Di,21,4,10,17,3.35
+H,Di,21,4,16,10,7.04
+N,Di,21,4,22,40,3.42
+H,Mi,22,4,5,10,7.06
+N,Mi,22,4,11,6,3.34
+H,Mi,22,4,17,0,7.02
+N,Mi,22,4,23,27,3.44
+H,Do,23,4,5,56,7.06
+N,Do,23,4,11,54,3.34
+H,Do,23,4,17,49,6.99
+N,Fr,24,4,0,13,3.46
+H,Fr,24,4,6,40,7.04
+N,Fr,24,4,12,40,3.35
+H,Fr,24,4,18,36,6.95
+N,Sa,25,4,0,58,3.49
+H,Sa,25,4,7,23,7.01
+N,Sa,25,4,13,24,3.37
+H,Sa,25,4,19,21,6.91
+N,So,26,4,1,42,3.51
+H,So,26,4,8,5,6.97
+N,So,26,4,14,7,3.39
+H,So,26,4,20,5,6.86
+N,Mo,27,4,2,26,3.53
+H,Mo,27,4,8,47,6.93
+N,Mo,27,4,14,50,3.41
+H,Mo,27,4,20,50,6.82
+N,Di,28,4,3,11,3.55
+H,Di,28,4,9,30,6.89
+N,Di,28,4,15,33,3.43
+H,Di,28,4,21,36,6.80
+N,Mi,29,4,3,57,3.57
+H,Mi,29,4,10,14,6.87
+N,Mi,29,4,16,18,3.45
+H,Mi,29,4,22,24,6.79
+N,Do,30,4,4,45,3.58
+H,Do,30,4,11,1,6.86
+N,Do,30,4,17,5,3.47
+H,Do,30,4,23,14,6.82
+N,Fr,1,5,5,36,3.57
+H,Fr,1,5,11,51,6.87
+N,Fr,1,5,17,55,3.49
+H,Sa,2,5,0,8,6.87
+N,Sa,2,5,6,31,3.54
+H,Sa,2,5,12,45,6.89
+N,Sa,2,5,18,49,3.51
+H,So,3,5,1,6,6.95
+N,So,3,5,7,31,3.49
+H,So,3,5,13,42,6.93
+N,So,3,5,19,47,3.53
+H,Mo,4,5,2,7,7.03
+N,Mo,4,5,8,32,3.43
+H,Mo,4,5,14,39,6.97
+N,Mo,4,5,20,45,3.55
+H,Di,5,5,3,6,7.09
+N,Di,5,5,9,30,3.38
+H,Di,5,5,15,33,7.00
+N,Di,5,5,21,40,3.58
+H,Mi,6,5,3,59,7.12
+N,Mi,6,5,10,24,3.34
+H,Mi,6,5,16,23,7.01
+N,Mi,6,5,22,31,3.60
+H,Do,7,5,4,49,7.12
+N,Do,7,5,11,14,3.31
+H,Do,7,5,17,11,7.00
+N,Do,7,5,23,19,3.63
+H,Fr,8,5,5,36,7.09
+N,Fr,8,5,12,2,3.30
+H,Fr,8,5,17,56,6.97
+N,Sa,9,5,0,4,3.65
+H,Sa,9,5,6,21,7.04
+N,Sa,9,5,12,48,3.30
+H,Sa,9,5,18,41,6.93
+N,So,10,5,0,47,3.66
+H,So,10,5,7,5,6.99
+N,So,10,5,13,33,3.31
+H,So,10,5,19,25,6.88
+N,Mo,11,5,1,29,3.67
+H,Mo,11,5,7,49,6.94
+N,Mo,11,5,14,17,3.31
+H,Mo,11,5,20,9,6.83
+N,Di,12,5,2,10,3.67
+H,Di,12,5,8,33,6.91
+N,Di,12,5,14,59,3.32
+H,Di,12,5,20,52,6.79
+N,Mi,13,5,2,51,3.66
+H,Mi,13,5,9,17,6.89
+N,Mi,13,5,15,40,3.32
+H,Mi,13,5,21,36,6.77
+N,Do,14,5,3,31,3.65
+H,Do,14,5,10,1,6.89
+N,Do,14,5,16,20,3.33
+H,Do,14,5,22,20,6.77
+N,Fr,15,5,4,11,3.63
+H,Fr,15,5,10,46,6.91
+N,Fr,15,5,17,1,3.34
+H,Fr,15,5,23,6,6.80
+N,Sa,16,5,4,53,3.60
+H,Sa,16,5,11,33,6.94
+N,Sa,16,5,17,44,3.35
+H,Sa,16,5,23,55,6.84
+N,So,17,5,5,38,3.56
+H,So,17,5,12,23,6.99
+N,So,17,5,18,30,3.36
+H,Mo,18,5,0,47,6.90
+N,Mo,18,5,6,27,3.51
+H,Mo,18,5,13,17,7.04
+N,Mo,18,5,19,21,3.37
+H,Di,19,5,1,43,6.97
+N,Di,19,5,7,21,3.46
+H,Di,19,5,14,13,7.09
+N,Di,19,5,20,15,3.39
+H,Mi,20,5,2,40,7.04
+N,Mi,20,5,8,16,3.41
+H,Mi,20,5,15,9,7.13
+N,Mi,20,5,21,8,3.41
+H,Do,21,5,3,34,7.10
+N,Do,21,5,9,8,3.38
+H,Do,21,5,16,1,7.14
+N,Do,21,5,21,58,3.44
+H,Fr,22,5,4,22,7.13
+N,Fr,22,5,9,56,3.36
+H,Fr,22,5,16,49,7.13
+N,Fr,22,5,22,44,3.47
+H,Sa,23,5,5,9,7.13
+N,Sa,23,5,10,43,3.36
+H,Sa,23,5,17,36,7.11
+N,Sa,23,5,23,30,3.49
+H,So,24,5,5,54,7.12
+N,So,24,5,11,30,3.36
+H,So,24,5,18,22,7.07
+N,Mo,25,5,0,16,3.52
+H,Mo,25,5,6,39,7.10
+N,Mo,25,5,12,17,3.37
+H,Mo,25,5,19,7,7.03
+N,Di,26,5,1,1,3.55
+H,Di,26,5,7,23,7.07
+N,Di,26,5,13,3,3.39
+H,Di,26,5,19,51,6.98
+N,Mi,27,5,1,47,3.57
+H,Mi,27,5,8,7,7.03
+N,Mi,27,5,13,49,3.41
+H,Mi,27,5,20,35,6.93
+N,Do,28,5,2,33,3.58
+H,Do,28,5,8,52,6.99
+N,Do,28,5,14,36,3.42
+H,Do,28,5,21,21,6.88
+N,Fr,29,5,3,20,3.59
+H,Fr,29,5,9,39,6.95
+N,Fr,29,5,15,24,3.44
+H,Fr,29,5,22,9,6.84
+N,Sa,30,5,4,9,3.59
+H,Sa,30,5,10,27,6.92
+N,Sa,30,5,16,14,3.46
+H,Sa,30,5,22,59,6.82
+N,So,31,5,5,0,3.59
+H,So,31,5,11,18,6.91
+N,So,31,5,17,7,3.47
+H,So,31,5,23,50,6.83
+N,Mo,1,6,5,53,3.57
+H,Mo,1,6,12,11,6.91
+N,Mo,1,6,18,1,3.49
+H,Di,2,6,0,44,6.87
+N,Di,2,6,6,48,3.54
+H,Di,2,6,13,6,6.93
+N,Di,2,6,18,58,3.51
+H,Mi,3,6,1,41,6.93
+N,Mi,3,6,7,45,3.50
+H,Mi,3,6,14,3,6.95
+N,Mi,3,6,19,56,3.53
+H,Do,4,6,2,38,6.99
+N,Do,4,6,8,42,3.46
+H,Do,4,6,15,0,6.97
+N,Do,4,6,20,53,3.56
+H,Fr,5,6,3,34,7.03
+N,Fr,5,6,9,38,3.43
+H,Fr,5,6,15,54,6.97
+N,Fr,5,6,21,47,3.58
+H,Sa,6,6,4,26,7.05
+N,Sa,6,6,10,30,3.42
+H,Sa,6,6,16,46,6.95
+N,Sa,6,6,22,38,3.60
+H,So,7,6,5,15,7.03
+N,So,7,6,11,20,3.41
+H,So,7,6,17,35,6.91
+N,So,7,6,23,27,3.62
+H,Mo,8,6,6,2,6.99
+N,Mo,8,6,12,8,3.41
+H,Mo,8,6,18,23,6.86
+N,Di,9,6,0,13,3.63
+H,Di,9,6,6,47,6.94
+N,Di,9,6,12,54,3.41
+H,Di,9,6,19,9,6.80
+N,Mi,10,6,0,58,3.63
+H,Mi,10,6,7,32,6.89
+N,Mi,10,6,13,40,3.41
+H,Mi,10,6,19,55,6.75
+N,Do,11,6,1,41,3.62
+H,Do,11,6,8,16,6.85
+N,Do,11,6,14,25,3.41
+H,Do,11,6,20,40,6.72
+N,Fr,12,6,2,24,3.61
+H,Fr,12,6,9,1,6.83
+N,Fr,12,6,15,11,3.42
+H,Fr,12,6,21,26,6.71
+N,Sa,13,6,3,8,3.59
+H,Sa,13,6,9,48,6.83
+N,Sa,13,6,15,58,3.42
+H,Sa,13,6,22,15,6.73
+N,So,14,6,3,55,3.57
+H,So,14,6,10,37,6.84
+N,So,14,6,16,47,3.43
+H,So,14,6,23,7,6.77
+N,Mo,15,6,4,46,3.54
+H,Mo,15,6,11,30,6.87
+N,Mo,15,6,17,38,3.44
+H,Mo,15,6,24,0,6.82
+N,Di,16,6,5,40,3.50
+H,Di,16,6,12,25,6.92
+N,Di,16,6,18,32,3.45
+H,Mi,17,6,0,58,6.88
+N,Mi,17,6,6,38,3.46
+H,Mi,17,6,13,23,6.98
+N,Mi,17,6,19,29,3.47
+H,Do,18,6,1,58,6.95
+N,Do,18,6,7,38,3.42
+H,Do,18,6,14,22,7.03
+N,Do,18,6,20,27,3.49
+H,Fr,19,6,2,57,7.02
+N,Fr,19,6,8,36,3.39
+H,Fr,19,6,15,18,7.07
+N,Fr,19,6,21,22,3.51
+H,Sa,20,6,3,51,7.06
+N,Sa,20,6,9,30,3.38
+H,Sa,20,6,16,11,7.08
+N,Sa,20,6,22,14,3.53
+H,So,21,6,4,42,7.07
+N,So,21,6,10,22,3.38
+H,So,21,6,17,2,7.06
+N,So,21,6,23,4,3.56
+H,Mo,22,6,5,31,7.05
+N,Mo,22,6,11,12,3.39
+H,Mo,22,6,17,51,7.02
+N,Mo,22,6,23,52,3.58
+H,Di,23,6,6,18,7.01
+N,Di,23,6,11,59,3.41
+H,Di,23,6,18,38,6.97
+N,Mi,24,6,0,39,3.60
+H,Mi,24,6,7,4,6.97
+N,Mi,24,6,12,44,3.43
+H,Mi,24,6,19,24,6.91
+N,Do,25,6,1,26,3.61
+H,Do,25,6,7,50,6.92
+N,Do,25,6,13,29,3.45
+H,Do,25,6,20,10,6.86
+N,Fr,26,6,2,13,3.62
+H,Fr,26,6,8,36,6.87
+N,Fr,26,6,14,14,3.47
+H,Fr,26,6,20,56,6.81
+N,Sa,27,6,3,1,3.63
+H,Sa,27,6,9,22,6.83
+N,Sa,27,6,15,1,3.49
+H,Sa,27,6,21,43,6.78
+N,So,28,6,3,50,3.63
+H,So,28,6,10,10,6.80
+N,So,28,6,15,50,3.51
+H,So,28,6,22,32,6.77
+N,Mo,29,6,4,41,3.63
+H,Mo,29,6,11,0,6.79
+N,Mo,29,6,16,41,3.52
+H,Mo,29,6,23,23,6.79
+N,Di,30,6,5,34,3.62
+H,Di,30,6,11,52,6.79
+N,Di,30,6,17,34,3.54
+H,Mi,1,7,0,16,6.83
+N,Mi,1,7,6,30,3.59
+H,Mi,1,7,12,47,6.81
+N,Mi,1,7,18,30,3.56
+H,Do,2,7,1,11,6.90
+N,Do,2,7,7,28,3.54
+H,Do,2,7,13,44,6.85
+N,Do,2,7,19,29,3.58
+H,Fr,3,7,2,8,6.98
+N,Fr,3,7,8,27,3.49
+H,Fr,3,7,14,42,6.90
+N,Fr,3,7,20,27,3.60
+H,Sa,4,7,3,5,7.05
+N,Sa,4,7,9,24,3.45
+H,Sa,4,7,15,38,6.93
+N,Sa,4,7,21,22,3.62
+H,So,5,7,3,59,7.09
+N,So,5,7,10,19,3.42
+H,So,5,7,16,32,6.94
+N,So,5,7,22,14,3.64
+H,Mo,6,7,4,50,7.09
+N,Mo,6,7,11,11,3.40
+H,Mo,6,7,17,23,6.91
+N,Mo,6,7,23,3,3.65
+H,Di,7,7,5,39,7.06
+N,Di,7,7,12,1,3.39
+H,Di,7,7,18,12,6.87
+N,Di,7,7,23,50,3.66
+H,Mi,8,7,6,26,7.02
+N,Mi,8,7,12,49,3.39
+H,Mi,8,7,18,59,6.81
+N,Do,9,7,0,35,3.66
+H,Do,9,7,7,12,6.97
+N,Do,9,7,13,36,3.39
+H,Do,9,7,19,46,6.76
+N,Fr,10,7,1,19,3.66
+H,Fr,10,7,7,57,6.93
+N,Fr,10,7,14,23,3.39
+H,Fr,10,7,20,33,6.72
+N,Sa,11,7,2,3,3.65
+H,Sa,11,7,8,43,6.90
+N,Sa,11,7,15,10,3.40
+H,Sa,11,7,21,21,6.71
+N,So,12,7,2,47,3.63
+H,So,12,7,9,30,6.89
+N,So,12,7,15,58,3.40
+H,So,12,7,22,10,6.71
+N,Mo,13,7,3,33,3.61
+H,Mo,13,7,10,19,6.89
+N,Mo,13,7,16,47,3.41
+H,Mo,13,7,23,2,6.74
+N,Di,14,7,4,21,3.57
+H,Di,14,7,11,9,6.90
+N,Di,14,7,17,37,3.42
+H,Di,14,7,23,56,6.79
+N,Mi,15,7,5,12,3.52
+H,Mi,15,7,12,1,6.93
+N,Mi,15,7,18,29,3.43
+H,Do,16,7,0,53,6.84
+N,Do,16,7,6,6,3.47
+H,Do,16,7,12,55,6.96
+N,Do,16,7,19,24,3.45
+H,Fr,17,7,1,52,6.90
+N,Fr,17,7,7,3,3.43
+H,Fr,17,7,13,51,6.99
+N,Fr,17,7,20,21,3.47
+H,Sa,18,7,2,51,6.96
+N,Sa,18,7,8,2,3.39
+H,Sa,18,7,14,47,7.01
+N,Sa,18,7,21,17,3.49
+H,So,19,7,3,47,7.01
+N,So,19,7,8,59,3.36
+H,So,19,7,15,41,7.02
+N,So,19,7,22,11,3.51
+H,Mo,20,7,4,40,7.03
+N,Mo,20,7,9,52,3.35
+H,Mo,20,7,16,32,7.00
+N,Mo,20,7,23,1,3.54
+H,Di,21,7,5,29,7.02
+N,Di,21,7,10,42,3.35
+H,Di,21,7,17,21,6.96
+N,Di,21,7,23,49,3.57
+H,Mi,22,7,6,16,6.99
+N,Mi,22,7,11,30,3.37
+H,Mi,22,7,18,9,6.90
+N,Do,23,7,0,37,3.59
+H,Do,23,7,7,3,6.95
+N,Do,23,7,12,18,3.39
+H,Do,23,7,18,56,6.84
+N,Fr,24,7,1,25,3.61
+H,Fr,24,7,7,50,6.91
+N,Fr,24,7,13,6,3.42
+H,Fr,24,7,19,44,6.78
+N,Sa,25,7,2,15,3.62
+H,Sa,25,7,8,38,6.87
+N,Sa,25,7,13,55,3.44
+H,Sa,25,7,20,32,6.73
+N,So,26,7,3,5,3.63
+H,So,26,7,9,27,6.83
+N,So,26,7,14,46,3.46
+H,So,26,7,21,21,6.70
+N,Mo,27,7,3,57,3.64
+H,Mo,27,7,10,17,6.80
+N,Mo,27,7,15,38,3.49
+H,Mo,27,7,22,13,6.69
+N,Di,28,7,4,51,3.63
+H,Di,28,7,11,9,6.78
+N,Di,28,7,16,33,3.51
+H,Di,28,7,23,6,6.71
+N,Mi,29,7,5,47,3.62
+H,Mi,29,7,12,4,6.78
+N,Mi,29,7,17,29,3.53
+H,Mi,29,7,24,0,6.75
+N,Do,30,7,6,46,3.59
+H,Do,30,7,13,0,6.79
+N,Do,30,7,18,28,3.55
+H,Fr,31,7,0,57,6.82
+N,Fr,31,7,7,47,3.55
+H,Fr,31,7,13,59,6.81
+N,Fr,31,7,19,30,3.57
+H,Sa,1,8,1,57,6.88
+N,Sa,1,8,8,50,3.51
+H,Sa,1,8,14,59,6.85
+N,Sa,1,8,20,34,3.59
+H,So,2,8,2,58,6.95
+N,So,2,8,9,51,3.46
+H,So,2,8,15,58,6.90
+N,So,2,8,21,36,3.61
+H,Mo,3,8,3,57,7.01
+N,Mo,3,8,10,49,3.42
+H,Mo,3,8,16,55,6.93
+N,Mo,3,8,22,35,3.63
+H,Di,4,8,4,52,7.04
+N,Di,4,8,11,44,3.39
+H,Di,4,8,17,49,6.93
+N,Di,4,8,23,31,3.64
+H,Mi,5,8,5,45,7.04
+N,Mi,5,8,12,36,3.37
+H,Mi,5,8,18,41,6.90
+N,Mi,5,8,24,0,3.65
+H,Do,6,8,6,34,7.01
+N,Do,6,8,13,25,3.37
+H,Do,6,8,19,31,6.85
+N,Fr,7,8,0,28,3.65
+H,Fr,7,8,7,22,6.96
+N,Fr,7,8,14,13,3.37
+H,Fr,7,8,20,19,6.79
+N,Sa,8,8,1,15,3.65
+H,Sa,8,8,8,9,6.91
+N,Sa,8,8,15,1,3.38
+H,Sa,8,8,21,7,6.74
+N,So,9,8,2,2,3.64
+H,So,9,8,8,57,6.87
+N,So,9,8,15,49,3.38
+H,So,9,8,21,55,6.71
+N,Mo,10,8,2,49,3.63
+H,Mo,10,8,9,45,6.85
+N,Mo,10,8,16,37,3.39
+H,Mo,10,8,22,44,6.71
+N,Di,11,8,3,38,3.61
+H,Di,11,8,10,36,6.84
+N,Di,11,8,17,27,3.40
+H,Di,11,8,23,35,6.73
+N,Mi,12,8,4,29,3.58
+H,Mi,12,8,11,29,6.84
+N,Mi,12,8,18,19,3.41
+H,Do,13,8,0,28,6.77
+N,Do,13,8,5,23,3.54
+H,Do,13,8,12,24,6.85
+N,Do,13,8,19,12,3.43
+H,Fr,14,8,1,24,6.82
+N,Fr,14,8,6,21,3.51
+H,Fr,14,8,13,21,6.88
+N,Fr,14,8,20,8,3.45
+H,Sa,15,8,2,22,6.88
+N,Sa,15,8,7,21,3.46
+H,Sa,15,8,14,19,6.93
+N,Sa,15,8,21,5,3.48
+H,So,16,8,3,19,6.95
+N,So,16,8,8,22,3.42
+H,So,16,8,15,16,6.98
+N,So,16,8,22,0,3.50
+H,Mo,17,8,4,14,7.00
+N,Mo,17,8,9,18,3.39
+H,Mo,17,8,16,10,7.01
+N,Mo,17,8,22,52,3.53
+H,Di,18,8,5,4,7.02
+N,Di,18,8,10,10,3.38
+H,Di,18,8,17,1,7.00
+N,Di,18,8,23,41,3.56
+H,Mi,19,8,5,51,7.00
+N,Mi,19,8,10,59,3.38
+H,Mi,19,8,17,49,6.97
+N,Do,20,8,0,28,3.59
+H,Do,20,8,6,36,6.96
+N,Do,20,8,11,46,3.39
+H,Do,20,8,18,35,6.91
+N,Fr,21,8,1,14,3.61
+H,Fr,21,8,7,20,6.91
+N,Fr,21,8,12,31,3.41
+H,Fr,21,8,19,20,6.85
+N,Sa,22,8,2,0,3.63
+H,Sa,22,8,8,5,6.86
+N,Sa,22,8,13,17,3.43
+H,Sa,22,8,20,6,6.79
+N,So,23,8,2,48,3.63
+H,So,23,8,8,51,6.82
+N,So,23,8,14,4,3.45
+H,So,23,8,20,53,6.74
+N,Mo,24,8,3,37,3.63
+H,Mo,24,8,9,39,6.78
+N,Mo,24,8,14,53,3.47
+H,Mo,24,8,21,40,6.71
+N,Di,25,8,4,28,3.63
+H,Di,25,8,10,29,6.75
+N,Di,25,8,15,44,3.48
+H,Di,25,8,22,31,6.69
+N,Mi,26,8,5,21,3.62
+H,Mi,26,8,11,21,6.73
+N,Mi,26,8,16,37,3.50
+H,Mi,26,8,23,23,6.70
+N,Do,27,8,6,16,3.60
+H,Do,27,8,12,15,6.73
+N,Do,27,8,17,33,3.51
+H,Fr,28,8,0,17,6.72
+N,Fr,28,8,7,14,3.58
+H,Fr,28,8,13,12,6.75
+N,Fr,28,8,18,32,3.53
+H,Sa,29,8,1,14,6.77
+N,Sa,29,8,8,15,3.55
+H,Sa,29,8,14,11,6.78
+N,Sa,29,8,19,34,3.56
+H,So,30,8,2,14,6.83
+N,So,30,8,9,18,3.50
+H,So,30,8,15,12,6.84
+N,So,30,8,20,37,3.58
+H,Mo,31,8,3,14,6.91
+N,Mo,31,8,10,18,3.44
+H,Mo,31,8,16,11,6.91
+N,Mo,31,8,21,38,3.60
+H,Di,1,9,4,13,6.99
+N,Di,1,9,11,15,3.38
+H,Di,1,9,17,8,6.98
+N,Di,1,9,22,36,3.62
+H,Mi,2,9,5,8,7.05
+N,Mi,2,9,12,9,3.33
+H,Mi,2,9,18,1,7.02
+N,Mi,2,9,23,30,3.63
+H,Do,3,9,5,59,7.08
+N,Do,3,9,12,59,3.30
+H,Do,3,9,18,52,7.03
+N,Fr,4,9,0,21,3.64
+H,Fr,4,9,6,46,7.07
+N,Fr,4,9,13,47,3.28
+H,Fr,4,9,19,41,7.01
+N,Sa,5,9,1,9,3.65
+H,Sa,5,9,7,31,7.04
+N,Sa,5,9,14,32,3.27
+H,Sa,5,9,20,27,6.97
+N,So,6,9,1,56,3.64
+H,So,6,9,8,15,7.00
+N,So,6,9,15,17,3.27
+H,So,6,9,21,14,6.92
+N,Mo,7,9,2,42,3.63
+H,Mo,7,9,8,59,6.96
+N,Mo,7,9,16,1,3.27
+H,Mo,7,9,22,1,6.87
+N,Di,8,9,3,28,3.61
+H,Di,8,9,9,44,6.92
+N,Di,8,9,16,46,3.28
+H,Di,8,9,22,48,6.84
+N,Mi,9,9,4,14,3.59
+H,Mi,9,9,10,30,6.90
+N,Mi,9,9,17,32,3.28
+H,Mi,9,9,23,37,6.83
+N,Do,10,9,5,2,3.55
+H,Do,10,9,11,18,6.89
+N,Do,10,9,18,19,3.29
+H,Fr,11,9,0,28,6.84
+N,Fr,11,9,5,52,3.51
+H,Fr,11,9,12,8,6.90
+N,Fr,11,9,19,9,3.31
+H,Sa,12,9,1,21,6.87
+N,Sa,12,9,6,47,3.47
+H,Sa,12,9,13,2,6.93
+N,Sa,12,9,20,3,3.33
+H,So,13,9,2,17,6.93
+N,So,13,9,7,46,3.42
+H,So,13,9,13,59,6.97
+N,So,13,9,21,0,3.36
+H,Mo,14,9,3,15,7.00
+N,Mo,14,9,8,47,3.38
+H,Mo,14,9,14,57,7.02
+N,Mo,14,9,21,58,3.39
+H,Di,15,9,4,13,7.06
+N,Di,15,9,9,47,3.35
+H,Di,15,9,15,53,7.06
+N,Di,15,9,22,52,3.42
+H,Mi,16,9,5,8,7.08
+N,Mi,16,9,10,43,3.33
+H,Mi,16,9,16,47,7.08
+N,Mi,16,9,23,43,3.46
+H,Do,17,9,5,59,7.07
+N,Do,17,9,11,35,3.33
+H,Do,17,9,17,38,7.06
+N,Fr,18,9,0,31,3.49
+H,Fr,18,9,6,47,7.04
+N,Fr,18,9,12,25,3.34
+H,Fr,18,9,18,27,7.02
+N,Sa,19,9,1,18,3.53
+H,Sa,19,9,7,33,6.99
+N,Sa,19,9,13,13,3.36
+H,Sa,19,9,19,15,6.97
+N,So,20,9,2,5,3.56
+H,So,20,9,8,18,6.94
+N,So,20,9,14,1,3.38
+H,So,20,9,20,3,6.91
+N,Mo,21,9,2,51,3.58
+H,Mo,21,9,9,3,6.89
+N,Mo,21,9,14,48,3.40
+H,Mo,21,9,20,50,6.85
+N,Di,22,9,3,38,3.60
+H,Di,22,9,9,48,6.84
+N,Di,22,9,15,35,3.42
+H,Di,22,9,21,38,6.80
+N,Mi,23,9,4,26,3.61
+H,Mi,23,9,10,33,6.80
+N,Mi,23,9,16,22,3.44
+H,Mi,23,9,22,27,6.76
+N,Do,24,9,5,16,3.61
+H,Do,24,9,11,20,6.76
+N,Do,24,9,17,11,3.46
+H,Do,24,9,23,19,6.75
+N,Fr,25,9,6,8,3.60
+H,Fr,25,9,12,10,6.74
+N,Fr,25,9,18,3,3.47
+H,Sa,26,9,0,14,6.76
+N,Sa,26,9,7,4,3.59
+H,Sa,26,9,13,4,6.75
+N,Sa,26,9,18,59,3.49
+H,So,27,9,1,13,6.80
+N,So,27,9,8,3,3.57
+H,So,27,9,14,2,6.78
+N,So,27,9,20,0,3.51
+H,Mo,28,9,2,16,6.86
+N,Mo,28,9,9,7,3.54
+H,Mo,28,9,15,4,6.84
+N,Mo,28,9,21,5,3.52
+H,Di,29,9,3,20,6.94
+N,Di,29,9,10,12,3.49
+H,Di,29,9,16,6,6.93
+N,Di,29,9,22,9,3.54
+H,Mi,30,9,4,22,7.03
+N,Mi,30,9,11,14,3.44
+H,Mi,30,9,17,6,7.03
+N,Mi,30,9,23,10,3.56
+H,Do,1,10,5,20,7.11
+N,Do,1,10,12,12,3.38
+H,Do,1,10,18,3,7.11
+N,Fr,2,10,0,8,3.57
+H,Fr,2,10,6,14,7.17
+N,Fr,2,10,13,7,3.33
+H,Fr,2,10,18,57,7.17
+N,Sa,3,10,1,2,3.59
+H,Sa,3,10,7,4,7.19
+N,Sa,3,10,14,0,3.29
+H,Sa,3,10,19,48,7.19
+N,So,4,10,1,53,3.60
+H,So,4,10,7,52,7.18
+N,So,4,10,14,50,3.27
+H,So,4,10,20,37,7.17
+N,Mo,5,10,2,41,3.61
+H,Mo,5,10,8,38,7.14
+N,Mo,5,10,15,37,3.25
+H,Mo,5,10,21,23,7.12
+N,Di,6,10,3,27,3.61
+H,Di,6,10,9,22,7.08
+N,Di,6,10,16,22,3.24
+H,Di,6,10,22,8,7.05
+N,Mi,7,10,4,12,3.61
+H,Mi,7,10,10,6,7.02
+N,Mi,7,10,17,6,3.24
+H,Mi,7,10,22,52,6.98
+N,Do,8,10,4,57,3.60
+H,Do,8,10,10,51,6.97
+N,Do,8,10,17,50,3.24
+H,Do,8,10,23,38,6.93
+N,Fr,9,10,5,42,3.59
+H,Fr,9,10,11,38,6.94
+N,Fr,9,10,18,35,3.25
+H,Sa,10,10,0,27,6.91
+N,Sa,10,10,6,30,3.57
+H,Sa,10,10,12,28,6.93
+N,Sa,10,10,19,23,3.26
+H,So,11,10,1,20,6.92
+N,So,11,10,7,22,3.54
+H,So,11,10,13,22,6.95
+N,So,11,10,20,15,3.28
+H,Mo,12,10,2,17,6.96
+N,Mo,12,10,8,20,3.51
+H,Mo,12,10,14,20,6.99
+N,Mo,12,10,21,11,3.30
+H,Di,13,10,3,16,7.02
+N,Di,13,10,9,22,3.47
+H,Di,13,10,15,21,7.04
+N,Di,13,10,22,9,3.33
+H,Mi,14,10,4,15,7.07
+N,Mi,14,10,10,24,3.43
+H,Mi,14,10,16,20,7.08
+N,Mi,14,10,23,5,3.37
+H,Do,15,10,5,12,7.10
+N,Do,15,10,11,23,3.40
+H,Do,15,10,17,17,7.10
+N,Do,15,10,23,57,3.41
+H,Fr,16,10,6,5,7.10
+N,Fr,16,10,12,19,3.38
+H,Fr,16,10,18,12,7.09
+N,Sa,17,10,0,47,3.45
+H,Sa,17,10,6,55,7.07
+N,Sa,17,10,13,12,3.38
+H,Sa,17,10,19,4,7.06
+N,So,18,10,1,35,3.49
+H,So,18,10,7,43,7.03
+N,So,18,10,14,3,3.38
+H,So,18,10,19,55,7.02
+N,Mo,19,10,2,22,3.53
+H,Mo,19,10,8,30,6.99
+N,Mo,19,10,14,54,3.39
+H,Mo,19,10,20,46,6.97
+N,Di,20,10,3,10,3.55
+H,Di,20,10,9,18,6.95
+N,Di,20,10,15,44,3.40
+H,Di,20,10,21,37,6.93
+N,Mi,21,10,3,59,3.57
+H,Mi,21,10,10,7,6.92
+N,Mi,21,10,16,35,3.41
+H,Mi,21,10,22,30,6.90
+N,Do,22,10,4,50,3.58
+H,Do,22,10,10,58,6.89
+N,Do,22,10,17,28,3.43
+H,Do,22,10,23,24,6.90
+N,Fr,23,10,5,44,3.58
+H,Fr,23,10,11,51,6.88
+N,Fr,23,10,18,23,3.44
+H,Sa,24,10,0,21,6.93
+N,Sa,24,10,6,42,3.56
+H,Sa,24,10,12,49,6.90
+N,Sa,24,10,19,22,3.46
+H,So,25,10,1,21,6.98
+N,So,25,10,7,45,3.53
+H,So,25,10,13,51,6.96
+N,So,25,10,20,26,3.48
+H,Mo,26,10,2,24,7.05
+N,Mo,26,10,8,51,3.49
+H,Mo,26,10,14,56,7.04
+N,Mo,26,10,21,31,3.50
+H,Di,27,10,3,28,7.12
+N,Di,27,10,9,56,3.43
+H,Di,27,10,15,58,7.12
+N,Di,27,10,22,32,3.52
+H,Mi,28,10,4,29,7.17
+N,Mi,28,10,10,56,3.38
+H,Mi,28,10,16,55,7.17
+N,Mi,28,10,23,29,3.54
+H,Do,29,10,5,25,7.20
+N,Do,29,10,11,50,3.34
+H,Do,29,10,17,47,7.19
+N,Fr,30,10,0,21,3.55
+H,Fr,30,10,6,16,7.20
+N,Fr,30,10,12,40,3.31
+H,Fr,30,10,18,36,7.17
+N,Sa,31,10,1,10,3.56
+H,Sa,31,10,7,4,7.16
+N,Sa,31,10,13,28,3.29
+H,Sa,31,10,19,21,7.10
+N,So,1,11,1,57,3.57
+H,So,1,11,7,49,7.10
+N,So,1,11,14,13,3.28
+H,So,1,11,20,4,7.02
+N,Mo,2,11,2,42,3.58
+H,Mo,2,11,8,32,7.04
+N,Mo,2,11,14,57,3.27
+H,Mo,2,11,20,47,6.95
+N,Di,3,11,3,26,3.58
+H,Di,3,11,9,15,6.99
+N,Di,3,11,15,40,3.27
+H,Di,3,11,21,30,6.89
+N,Mi,4,11,4,10,3.58
+H,Mi,4,11,9,59,6.96
+N,Mi,4,11,16,23,3.27
+H,Mi,4,11,22,14,6.86
+N,Do,5,11,4,55,3.58
+H,Do,5,11,10,44,6.94
+N,Do,5,11,17,7,3.27
+H,Do,5,11,23,0,6.85
+N,Fr,6,11,5,41,3.57
+H,Fr,6,11,11,32,6.95
+N,Fr,6,11,17,53,3.28
+H,Fr,6,11,23,49,6.87
+N,Sa,7,11,6,31,3.56
+H,Sa,7,11,12,23,6.98
+N,Sa,7,11,18,42,3.29
+H,So,8,11,0,42,6.91
+N,So,8,11,7,25,3.53
+H,So,8,11,13,18,7.03
+N,So,8,11,19,36,3.31
+H,Mo,9,11,1,39,6.98
+N,Mo,9,11,8,23,3.49
+H,Mo,9,11,14,17,7.08
+N,Mo,9,11,20,34,3.33
+H,Di,10,11,2,38,7.05
+N,Di,10,11,9,23,3.45
+H,Di,10,11,15,17,7.12
+N,Di,10,11,21,33,3.36
+H,Mi,11,11,3,36,7.11
+N,Mi,11,11,10,22,3.42
+H,Mi,11,11,16,15,7.14
+N,Mi,11,11,22,30,3.39
+H,Do,12,11,4,33,7.14
+N,Do,12,11,11,19,3.39
+H,Do,12,11,17,12,7.14
+N,Do,12,11,23,25,3.43
+H,Fr,13,11,5,27,7.14
+N,Fr,13,11,12,14,3.38
+H,Fr,13,11,18,8,7.12
+N,Sa,14,11,0,19,3.46
+H,Sa,14,11,6,19,7.12
+N,Sa,14,11,13,8,3.38
+H,Sa,14,11,19,2,7.09
+N,So,15,11,1,11,3.50
+H,So,15,11,7,9,7.07
+N,So,15,11,13,59,3.39
+H,So,15,11,19,54,7.04
+N,Mo,16,11,2,1,3.53
+H,Mo,16,11,7,58,7.02
+N,Mo,16,11,14,47,3.41
+H,Mo,16,11,20,44,6.99
+N,Di,17,11,2,50,3.55
+H,Di,17,11,8,46,6.97
+N,Di,17,11,15,34,3.42
+H,Di,17,11,21,33,6.95
+N,Mi,18,11,3,39,3.57
+H,Mi,18,11,9,34,6.93
+N,Mi,18,11,16,21,3.44
+H,Mi,18,11,22,23,6.93
+N,Do,19,11,4,29,3.57
+H,Do,19,11,10,24,6.91
+N,Do,19,11,17,10,3.45
+H,Do,19,11,23,14,6.93
+N,Fr,20,11,5,20,3.56
+H,Fr,20,11,11,16,6.91
+N,Fr,20,11,18,1,3.47
+H,Sa,21,11,0,8,6.97
+N,Sa,21,11,6,15,3.55
+H,Sa,21,11,12,12,6.94
+N,Sa,21,11,18,56,3.49
+H,So,22,11,1,6,7.03
+N,So,22,11,7,16,3.52
+H,So,22,11,13,12,6.99
+N,So,22,11,19,55,3.51
+H,Mo,23,11,2,7,7.09
+N,Mo,23,11,8,20,3.48
+H,Mo,23,11,14,16,7.07
+N,Mo,23,11,20,57,3.53
+H,Di,24,11,3,10,7.16
+N,Di,24,11,9,25,3.43
+H,Di,24,11,15,19,7.14
+N,Di,24,11,21,57,3.56
+H,Mi,25,11,4,11,7.21
+N,Mi,25,11,10,27,3.38
+H,Mi,25,11,16,20,7.18
+N,Mi,25,11,22,55,3.58
+H,Do,26,11,5,9,7.24
+N,Do,26,11,11,25,3.34
+H,Do,26,11,17,18,7.20
+N,Do,26,11,23,49,3.59
+H,Fr,27,11,6,2,7.23
+N,Fr,27,11,12,19,3.32
+H,Fr,27,11,18,11,7.18
+N,Sa,28,11,0,40,3.60
+H,Sa,28,11,6,51,7.19
+N,Sa,28,11,13,8,3.31
+H,Sa,28,11,18,59,7.12
+N,So,29,11,1,27,3.61
+H,So,29,11,7,36,7.12
+N,So,29,11,13,54,3.31
+H,So,29,11,19,43,7.04
+N,Mo,30,11,2,11,3.61
+H,Mo,30,11,8,19,7.03
+N,Mo,30,11,14,36,3.33
+H,Mo,30,11,20,24,6.95
+N,Di,1,12,2,54,3.62
+H,Di,1,12,9,0,6.95
+N,Di,1,12,15,17,3.34
+H,Di,1,12,21,4,6.88
+N,Mi,2,12,3,36,3.62
+H,Mi,2,12,9,40,6.90
+N,Mi,2,12,15,57,3.36
+H,Mi,2,12,21,44,6.84
+N,Do,3,12,4,19,3.62
+H,Do,3,12,10,21,6.87
+N,Do,3,12,16,37,3.37
+H,Do,3,12,22,27,6.83
+N,Fr,4,12,5,3,3.61
+H,Fr,4,12,11,5,6.87
+N,Fr,4,12,17,20,3.38
+H,Fr,4,12,23,13,6.85
+N,Sa,5,12,5,50,3.60
+H,Sa,5,12,11,52,6.89
+N,Sa,5,12,18,6,3.40
+H,Sa,5,12,24,0,6.90
+N,So,6,12,6,40,3.57
+H,So,6,12,12,44,6.94
+N,So,6,12,18,57,3.43
+H,Mo,7,12,0,51,6.97
+N,Mo,7,12,7,35,3.53
+H,Mo,7,12,13,39,6.99
+N,Mo,7,12,19,53,3.46
+H,Di,8,12,1,46,7.05
+N,Di,8,12,8,34,3.48
+H,Di,8,12,14,38,7.05
+N,Di,8,12,20,52,3.48
+H,Mi,9,12,2,43,7.12
+N,Mi,9,12,9,32,3.42
+H,Mi,9,12,15,36,7.10
+N,Mi,9,12,21,48,3.51
+H,Do,10,12,3,38,7.17
+N,Do,10,12,10,27,3.36
+H,Do,10,12,16,31,7.14
+N,Do,10,12,22,41,3.53
+H,Fr,11,12,4,30,7.21
+N,Fr,11,12,11,19,3.31
+H,Fr,11,12,17,24,7.16
+N,Fr,11,12,23,31,3.56
+H,Sa,12,12,5,19,7.22
+N,Sa,12,12,12,8,3.28
+H,Sa,12,12,18,14,7.16
+N,So,13,12,0,19,3.57
+H,So,13,12,6,5,7.20
+N,So,13,12,12,55,3.26
+H,So,13,12,19,2,7.14
+N,Mo,14,12,1,5,3.59
+H,Mo,14,12,6,50,7.15
+N,Mo,14,12,13,39,3.25
+H,Mo,14,12,19,47,7.09
+N,Di,15,12,1,49,3.60
+H,Di,15,12,7,33,7.09
+N,Di,15,12,14,22,3.25
+H,Di,15,12,20,31,7.02
+N,Mi,16,12,2,33,3.60
+H,Mi,16,12,8,17,7.01
+N,Mi,16,12,15,5,3.26
+H,Mi,16,12,21,17,6.96
+N,Do,17,12,3,17,3.60
+H,Do,17,12,9,2,6.93
+N,Do,17,12,15,49,3.27
+H,Do,17,12,22,5,6.91
+N,Fr,18,12,4,3,3.59
+H,Fr,18,12,9,49,6.87
+N,Fr,18,12,16,36,3.28
+H,Fr,18,12,22,58,6.88
+N,Sa,19,12,4,53,3.58
+H,Sa,19,12,10,40,6.84
+N,Sa,19,12,17,26,3.29
+H,Sa,19,12,23,54,6.89
+N,So,20,12,5,47,3.56
+H,So,20,12,11,35,6.83
+N,So,20,12,18,22,3.31
+H,Mo,21,12,0,53,6.94
+N,Mo,21,12,6,47,3.53
+H,Mo,21,12,12,34,6.85
+N,Mo,21,12,19,22,3.33
+H,Di,22,12,1,56,7.01
+N,Di,22,12,7,53,3.48
+H,Di,22,12,13,37,6.91
+N,Di,22,12,20,25,3.35
+H,Mi,23,12,2,58,7.10
+N,Mi,23,12,8,56,3.41
+H,Mi,23,12,14,38,6.99
+N,Mi,23,12,21,26,3.37
+H,Do,24,12,3,57,7.20
+N,Do,24,12,9,55,3.33
+H,Do,24,12,15,37,7.07
+N,Do,24,12,22,24,3.39
+H,Fr,25,12,4,50,7.29
+N,Fr,25,12,10,50,3.24
+H,Fr,25,12,16,33,7.13
+N,Fr,25,12,23,20,3.41
+H,Sa,26,12,5,39,7.35
+N,Sa,26,12,11,42,3.17
+H,Sa,26,12,17,26,7.16
+N,So,27,12,0,15,3.43
+H,So,27,12,6,26,7.37
+N,So,27,12,12,33,3.11
+H,So,27,12,18,17,7.15
+N,Mo,28,12,1,8,3.45
+H,Mo,28,12,7,11,7.35
+N,Mo,28,12,13,23,3.08
+H,Mo,28,12,19,5,7.12
+N,Di,29,12,1,59,3.47
+H,Di,29,12,7,54,7.29
+N,Di,29,12,14,12,3.07
+H,Di,29,12,19,52,7.06
+N,Mi,30,12,2,47,3.50
+H,Mi,30,12,8,36,7.21
+N,Mi,30,12,15,0,3.09
+H,Mi,30,12,21,36,7.02
+N,Do,31,12,4,31,3.53
+H,Do,31,12,9,41,7.13
+N,Do,31,12,16,17,3.14
+`;
+
+
+function parseBSH() {
+  return BSH_RAW.trim().split('\n').map(line => {
+    const parts = line.split(',');
+    if (parts.length < 7) return null;
+    const [typ,,tag,monat,stunde,minute,hoehe] = parts;
+    const day=parseInt(tag), month=parseInt(monat), hour=parseInt(stunde), min=parseInt(minute);
+    const heightPNP = parseFloat(hoehe);
+    const dt = new Date(2026, month-1, day, hour, min, 0);
+    return isNaN(dt.getTime()) || isNaN(heightPNP) ? null
+      : { typ, day, month, hour, min, heightPNP, heightNHN: heightPNP + PNP_NHN, dt };
+  }).filter(Boolean);
+}
+
+// ══════════════════════════════════════════
+//  GEZEITEN-LIVEDATEN — gestufte Strategie
+//
+//  1. Primär: BSH Wasserstandsvorhersage (Hamburg St. Pauli)
+//     → amtliche Scheitelwerte + Kurvenvorhersage mit Wetter-Einfluss
+//     → BSH sendet keine CORS-Header → öffentlicher Proxy nötig
+//  2. Fallback: PEGELONLINE-Live-Messung (Hamburg-Harburg)
+//     → CORS-frei, aber nur reale Messwerte + lokale Peak-Detection
+//  3. Last resort: statische 2026-Vorausberechnung (BSH_RAW im Code)
+// ══════════════════════════════════════════
+
+// --- BSH Konfiguration ---
+const BSH_TARGET_URL = 'https://wasserstand-nordsee.bsh.de/data/DE__508P.json';  // St. Pauli
+// Public CORS-Proxies in Reihenfolge probieren; auf GitHub Pages (https-Origin)
+// akzeptieren die im Gegensatz zu file://-Origin Requests.
+const BSH_PROXIES = [
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://cors.eu.org/${u}`,
+];
+
+// --- PEGELONLINE Konfiguration (Fallback) ---
+const STPAULI_UUID = 'b97db2fe-82ff-4bde-a73b-f087a3b0f9c4';  // Harburg
+const STPAULI_PNP_NHN_M = -5.015;
+const STPAULI_MHW_CM = 719;
+const STPAULI_MNW_CM = 334;
+
+let bshApiData = null;        // {source:'bsh'|'pegelonline', ...}
+
+async function loadBSH() {
+  // --- Versuch 1: BSH via Proxy-Kette ---
+  for (const proxy of BSH_PROXIES) {
+    try {
+      const url = proxy(BSH_TARGET_URL);
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      // Sanity-Check: BSH-JSON muss die bekannten Strukturen enthalten
+      if (json && (json.curve_forecast || json.hwnw_forecast)) {
+        bshApiData = { ...json, source: 'bsh' };
+        console.info('BSH Live-Daten geladen via:', new URL(url).hostname);
+        return true;
+      }
+      throw new Error('Unerwartetes BSH-JSON-Format');
+    } catch (e) {
+      console.warn('BSH-Proxy fehlgeschlagen:', e.message);
+    }
+  }
+
+  // --- Versuch 2: PEGELONLINE (Harburg) ---
+  try {
+    const url = `https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/${STPAULI_UUID}/W/measurements.json?start=P7D`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const raw = await res.json();
+    if (!Array.isArray(raw) || !raw.length) throw new Error('Keine Messwerte');
+
+    const measurements = raw.map(m => ({
+      ts: new Date(m.timestamp),
+      cm: m.value,
+    })).filter(m => !isNaN(m.ts.getTime()) && typeof m.cm === 'number');
+
+    const smoothed = rollingMean(measurements.map(m => m.cm), 15);
+    const peaks = detectPeaks(measurements, smoothed, 180 * 60 * 1000);
+
+    bshApiData = {
+      source: 'pegelonline',
+      station_name: 'Hamburg-Harburg, Elbe',
+      MHW: STPAULI_MHW_CM,
+      MNW: STPAULI_MNW_CM,
+      'PNP (unter NHN)': Math.round(STPAULI_PNP_NHN_M * 100),
+      measurements,
+      peaks,
+    };
+    console.info('PEGELONLINE-Fallback geladen:', measurements.length, 'Messwerte,', peaks.length, 'Scheitel');
+    return true;
+  } catch (e) {
+    console.warn('Alle Live-Quellen fehlgeschlagen, verwende statische 2026-Daten:', e.message);
+    bshApiData = null;
+    return false;
+  }
+}
+
+// Einfacher Rolling-Mean-Smoother
+function rollingMean(arr, window) {
+  const half = Math.floor(window / 2);
+  return arr.map((_, i) => {
+    const lo = Math.max(0, i - half);
+    const hi = Math.min(arr.length, i + half + 1);
+    let sum = 0, n = 0;
+    for (let k = lo; k < hi; k++) { sum += arr[k]; n++; }
+    return sum / n;
+  });
+}
+
+// Scheitelwert-Erkennung: Vorzeichenwechsel der Ableitung finden
+function detectPeaks(measurements, smoothedCm, minGapMs) {
+  if (smoothedCm.length < 3) return [];
+  const peaks = [];
+  // 1. Kandidaten aus Ableitungs-Vorzeichenwechsel
+  for (let i = 1; i < smoothedCm.length - 1; i++) {
+    const prev = smoothedCm[i - 1], cur = smoothedCm[i], next = smoothedCm[i + 1];
+    const isMax = cur >= prev && cur > next;
+    const isMin = cur <= prev && cur < next;
+    if (isMax || isMin) {
+      peaks.push({
+        idx: i,
+        ts: measurements[i].ts,
+        cm: measurements[i].cm,    // Originalwert, nicht geglättet
+        typ: isMax ? 'H' : 'N',
+      });
+    }
+  }
+  // 2. Zu dicht beieinander liegende Scheitel weg-filtern
+  //    (bei jedem Paar zu nah: den "weniger extremen" verwerfen)
+  const filtered = [];
+  for (const p of peaks) {
+    const last = filtered[filtered.length - 1];
+    if (!last || (p.ts - last.ts) >= minGapMs) {
+      filtered.push(p);
+    } else {
+      // Gleicher Typ? Extremeren behalten
+      if (p.typ === last.typ) {
+        const keepCurrent = (p.typ === 'H' ? p.cm > last.cm : p.cm < last.cm);
+        if (keepCurrent) filtered[filtered.length - 1] = p;
+      }
+      // Verschiedener Typ + zu dicht: beide verdächtig, aktuellen verwerfen
+    }
+  }
+  return filtered;
+}
+// Converts PEGELONLINE peaks into our internal event shape (identisch zu parseBSH())
+function bshEventsFromApi() {
+  if (!bshApiData) return [];
+  const PNP = (bshApiData['PNP (unter NHN)'] || -500) / 100; // m, negativ
+  const MHW_M = (bshApiData.MHW ?? STPAULI_MHW_CM) / 100;
+  const MNW_M = (bshApiData.MNW ?? STPAULI_MNW_CM) / 100;
+
+  // BSH-Format: hwnw_forecast.data = [{timestamp, value(cm PNP), event('HW'|'NW'), forecast('-0,5 m')}, ...]
+  if (bshApiData.source === 'bsh' && bshApiData.hwnw_forecast?.data) {
+    return bshApiData.hwnw_forecast.data.map(d => {
+      const dt = new Date(d.timestamp);
+      const heightPNP = d.value / 100;
+      const heightNHN = heightPNP + PNP;
+      return {
+        typ: d.event === 'HW' ? 'H' : 'N',
+        day: dt.getDate(),
+        month: dt.getMonth() + 1,
+        hour: dt.getHours(),
+        min: dt.getMinutes(),
+        heightPNP,
+        heightNHN,
+        dt,
+        forecast: d.forecast,
+      };
+    });
+  }
+
+  // PEGELONLINE-Format: peaks = [{ts, cm, typ}, ...]
+  if (bshApiData.peaks) {
+    return bshApiData.peaks.map(p => {
+      const heightPNP = p.cm / 100;
+      const heightNHN = heightPNP + PNP;
+      const ref = p.typ === 'H' ? MHW_M : MNW_M;
+      const deviation = heightPNP - ref;
+      const sign = deviation >= 0 ? '+' : '';
+      return {
+        typ: p.typ,
+        day: p.ts.getDate(),
+        month: p.ts.getMonth() + 1,
+        hour: p.ts.getHours(),
+        min: p.ts.getMinutes(),
+        heightPNP,
+        heightNHN,
+        dt: p.ts,
+        forecast: `${sign}${deviation.toFixed(2)} m`,
+      };
+    });
+  }
+
+  return [];
+}
+
+function renderGezeiten() {
+  // useLive = wir haben LIVE-Daten (egal ob BSH oder PEGELONLINE)
+  const isBSH = bshApiData?.source === 'bsh' && bshApiData?.hwnw_forecast?.data?.length > 0;
+  const isPegel = bshApiData?.peaks?.length > 0 && bshApiData?.measurements?.length > 0;
+  const useLive = isBSH || isPegel;
+  const all = useLive ? bshEventsFromApi() : parseBSH();
+  const now = new Date();
+  const todayDay = now.getDate(), todayMonth = now.getMonth()+1;
+  // For live data, use real now. For static fallback, map to year 2026.
+  const nowRef = useLive ? now : new Date(2026, now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+  const todayRef = useLive ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : new Date(2026, now.getMonth(), now.getDate());
+
+  // MHW/MNW aus API, sonst Fallback (St. Pauli)
+  const MHW = useLive && bshApiData?.MHW ? bshApiData.MHW/100 : 7.14;
+  const MNW = useLive && bshApiData?.MNW ? bshApiData.MNW/100 : 3.31;
+
+  // Scheitelwert-Tabelle
+  //   Live (PEGELONLINE): erkannte HW/NW der letzten 7 Tage — neueste zuerst
+  //   Fallback (statische BSH 2026): alle Events der nächsten 14 Tage
+  const eventsForTable = useLive
+    ? [...all].sort((a, b) => b.dt - a.dt).slice(0, 40)
+    : all.filter(e => { const d=(e.dt-todayRef)/86400000; return d>=0&&d<14; });
+
+  const bshTbody = document.getElementById('bsh-tbody');
+  if (bshTbody) {
+    bshTbody.innerHTML = eventsForTable.map(e => {
+      const hw = e.typ === 'H';
+      // Für Live-Daten: forecast-String direkt benutzen (z.B. "-0,5 m")
+      // Für Fallback: selbst berechnen
+      const abwStr = useLive && e.forecast
+        ? e.forecast
+        : ((hw ? e.heightPNP - MHW : e.heightPNP - MNW) >= 0 ? '+' : '')
+          + (hw ? e.heightPNP - MHW : e.heightPNP - MNW).toFixed(2) + ' m';
+      const dateStr = `${String(e.day).padStart(2,'0')}.${String(e.month).padStart(2,'0')}.`;
+      const timeStr = `${String(e.hour).padStart(2,'0')}:${String(e.min).padStart(2,'0')}`;
+      const cls = hw ? 'row-hw' : 'row-nw';
+      return `<tr class="${cls}">
+        <td>${dateStr}</td>
+        <td>${timeStr}</td>
+        <td>${hw ? 'HW' : 'NW'}</td>
+        <td>${abwStr}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Today pills
+  const todayEvents = all.filter(e => {
+    return useLive
+      ? (e.dt.getDate()===todayDay && e.dt.getMonth()+1===todayMonth)
+      : (e.day===todayDay && e.month===todayMonth);
+  });
+  const todayEl = document.getElementById('gezeiten-today');
+  todayEl.innerHTML = todayEvents.length
+    ? todayEvents.map(e => {
+        const t = `${String(e.hour).padStart(2,'0')}:${String(e.min).padStart(2,'0')}`;
+        const cls = e.typ==='H' ? 'tp-hw' : '';
+        const lbl = e.typ==='H' ? 'HW' : 'NW';
+        return `<div class="today-pill">
+          <span class="tp ${cls}" style="font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.05em">${lbl}</span>
+          <span class="tt">${t} Uhr</span>
+          <span class="th">${e.heightPNP.toFixed(2)} m</span>
+        </div>`;
+      }).join('')
+    : '<span style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">Keine Ereignisse gefunden</span>';
+
+  // Live: letzte 3 Scheitelwerte (Vergangenheit) — für Fallback: nächste 3 (Zukunft)
+  const eventsList = useLive
+    ? [...all].sort((a, b) => b.dt - a.dt).slice(0, 3).reverse()
+    : all.filter(e => e.dt > nowRef).slice(0, 3);
+  const eventsEl = document.getElementById('gezeiten-events');
+  eventsEl.innerHTML = eventsList.map((e, i) => {
+    const t = `${String(e.hour).padStart(2,'0')}:${String(e.min).padStart(2,'0')}`;
+    const hw = e.typ === 'H';
+    const diff = e.dt - nowRef;
+    const absDiff = Math.abs(diff);
+    const hh = Math.floor(absDiff/3600000), mm = Math.floor((absDiff%3600000)/60000);
+    // Für Live = vergangene Events: "vor Xh Ymin"
+    // Für Fallback = zukünftige Events: "in Xh Ymin"
+    const countdown = useLive
+      ? (i === eventsList.length - 1 ? `vor ${hh}h ${mm}min` : '')
+      : (i === 0 ? `in ${hh}h ${mm}min` : '');
+    const isLatest = useLive ? (i === eventsList.length - 1) : (i === 0);
+    return `<div class="tide-box ${hw?'hw':'nw'}${isLatest?' next-up':''}">
+      <div class="tide-box-top">
+        <span class="tide-type-pill ${hw?'tp-hw':''}">${hw?'Hochwasser':'Niedrigwasser'}</span>
+        <span class="tide-date-small">${e.day}.${String(e.month).padStart(2,'0')}.</span>
+      </div>
+      <div class="tide-time">${t}</div>
+      <div class="tide-height">${e.heightPNP.toFixed(2)} m PNP · ${e.heightNHN.toFixed(2)} m NHN</div>
+      ${countdown ? `<div class="tide-countdown">${countdown}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Chart:
+  //   Live → PEGELONLINE Messkurve (7 Tage) + MHW/MNW-Linien + Scheitel-Marker
+  //   Fallback → Scheitelwerte der nächsten 7 Tage (statische BSH-Daten)
+  const c = getChartColors();
+  const ctx = document.getElementById('gezeiten-chart').getContext('2d');
+  if (gezeitenChart) gezeitenChart.destroy();
+
+  if (useLive && (isBSH || isPegel)) {
+    const PNP = (bshApiData['PNP (unter NHN)'] || -500) / 100;  // m, negativ
+    const mhwCm = bshApiData.MHW ?? STPAULI_MHW_CM;
+    const mnwCm = bshApiData.MNW ?? STPAULI_MNW_CM;
+    const toCmNHN = v => v == null ? null : Math.round(v + PNP * 100);
+
+    // BSH-Farbpalette (wie auf der BSH-Seite)
+    const BSH_RED    = '#E10105';   // Messwert/Beobachtung
+    const BSH_ORANGE = '#DB8503';   // Kurvenvorhersage (nur BSH)
+    const BSH_GREEN  = '#3DDF02';   // Gezeitenvorausberechnung/astro (nur BSH)
+    const BSH_MHW    = '#A0CBE8';
+    const BSH_MNW    = '#FF9D9A';
+    const BSH_BROWN  = '#995D02';
+
+    // Daten normalisieren: unabhängig von der Quelle brauchen wir:
+    //   sampled      = [{ts: Date, cm: measurement (cm PNP)}, ...]
+    //   sampledAstro = [cm PNP oder null, ...] (nur BSH)
+    //   sampledFc    = [cm PNP oder null, ...] (nur BSH, Kurvenvorhersage)
+    //   peaks        = [{ts, cm, typ}, ...]
+    let sampled, sampledAstro = null, sampledFc = null, peaksSrc;
+
+    if (isBSH) {
+      const curve = bshApiData.curve_forecast.data;
+      // BSH-curve_forecast hat je Eintrag: {timestamp, astro, curveforecast, measurement} (cm PNP)
+      const step = Math.max(1, Math.floor(curve.length / 600));
+      const selected = curve.filter((_, i) => i % step === 0);
+      sampled = selected.map(d => ({
+        ts: new Date(d.timestamp),
+        cm: d.measurement ?? d.curveforecast ?? d.astro,  // priorisiere Messung, dann Forecast, dann astro
+      }));
+      sampledAstro = selected.map(d => d.astro ?? null);
+      sampledFc    = selected.map(d => d.curveforecast ?? null);
+      // Peaks aus hwnw_forecast
+      peaksSrc = (bshApiData.hwnw_forecast?.data || []).map(d => ({
+        ts: new Date(d.timestamp),
+        cm: d.value,
+        typ: d.event === 'HW' ? 'H' : 'N',
+      }));
+    } else {
+      // PEGELONLINE-Fallback
+      const meas = bshApiData.measurements;
+      const step = Math.max(1, Math.floor(meas.length / 600));
+      sampled = meas.filter((_, i) => i % step === 0);
+      peaksSrc = bshApiData.peaks || [];
+    }
+
+    // Labels: dd.mm HH:MM
+    const labels = sampled.map(m => {
+      return `${String(m.ts.getDate()).padStart(2,'0')}.${String(m.ts.getMonth()+1).padStart(2,'0')} ${String(m.ts.getHours()).padStart(2,'0')}:${String(m.ts.getMinutes()).padStart(2,'0')}`;
+    });
+
+    // Scheitelwert-Punkte in dieselbe X-Achse einpinnen
+    const scheitelData = new Array(sampled.length).fill(null);
+    peaksSrc.forEach(p => {
+      const tgt = p.ts.getTime();
+      let bestIdx = -1, bestDiff = Infinity;
+      sampled.forEach((m, i) => {
+        const d = Math.abs(m.ts.getTime() - tgt);
+        if (d < bestDiff) { bestDiff = d; bestIdx = i; }
+      });
+      if (bestIdx >= 0) scheitelData[bestIdx] = toCmNHN(p.cm);
+    });
+
+    // Tages-Separatoren
+    const dayBoundaryIndices = [];
+    let prevDay = null;
+    sampled.forEach((m, i) => {
+      const day = m.ts.getDate();
+      if (prevDay !== null && day !== prevDay) dayBoundaryIndices.push(i);
+      prevDay = day;
+    });
+
+    // Jetzt-Linie
+    const nowTs = Date.now();
+    let nowIdx = -1, nowBest = Infinity;
+    sampled.forEach((m, i) => {
+      const diff = Math.abs(m.ts.getTime() - nowTs);
+      if (diff < nowBest) { nowBest = diff; nowIdx = i; }
+    });
+
+    // MHW/MNW horizontal
+    const mhwLine = new Array(sampled.length).fill(mhwCm + Math.round(PNP * 100));
+    const mnwLine = new Array(sampled.length).fill(mnwCm + Math.round(PNP * 100));
+
+    const baseOpts = chartOptions({
+      yTicks: { callback: v => v + ' cm', stepSize: 100 },
+      tooltip: {
+        callbacks: {
+          title: items => items[0] ? labels[items[0].dataIndex] : '',
+          label: ctx => {
+            if (ctx.parsed.y == null) return null;
+            if (ctx.dataset.label?.startsWith('Mittleres')) return null;
+            return ` ${ctx.dataset.label}: ${ctx.parsed.y} cm NHN`;
+          },
+        }
+      }
+    });
+    baseOpts.plugins.legend = {
+      display: true, position: 'bottom',
+      labels: {
+        font: { size: 10, family:'DM Mono' },
+        color: c.tick, boxWidth: 22, boxHeight: 2, padding: 10,
+      }
+    };
+    baseOpts.animation = { duration: 400 };
+    baseOpts.scales.x.ticks.maxTicksLimit = 14;
+
+    // Plugin: Tages-Separator + Tages-Labels + Jetzt-Linie
+    const dayBoundaryPlugin = {
+      id: 'bshDayBoundaries',
+      afterDatasetsDraw(chart) {
+        const {ctx, chartArea, scales: {x}} = chart;
+        ctx.save();
+        ctx.strokeStyle = '#c9c9c4';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        dayBoundaryIndices.forEach(idx => {
+          const px = x.getPixelForValue(idx);
+          ctx.beginPath();
+          ctx.moveTo(px, chartArea.top);
+          ctx.lineTo(px, chartArea.bottom);
+          ctx.stroke();
+        });
+        if (nowIdx >= 0) {
+          ctx.strokeStyle = '#D99533';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3,3]);
+          const px = x.getPixelForValue(nowIdx);
+          ctx.beginPath();
+          ctx.moveTo(px, chartArea.top);
+          ctx.lineTo(px, chartArea.bottom);
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#555';
+        ctx.font = '11px "DM Mono", monospace';
+        ctx.textAlign = 'center';
+        const segments = [0, ...dayBoundaryIndices, sampled.length - 1];
+        const weekdays = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+        for (let s = 0; s < segments.length - 1; s++) {
+          const midIdx = Math.floor((segments[s] + segments[s+1]) / 2);
+          const d = sampled[midIdx].ts;
+          const px = x.getPixelForValue(midIdx);
+          ctx.fillText(weekdays[d.getDay()], px, chartArea.top - 4);
+        }
+        ctx.restore();
+      }
+    };
+
+    // Datasets zusammenbauen — MHW/MNW-Referenzlinien, optional BSH-Vorhersagekurven, Messwerte, Scheitelpunkte
+    const datasets = [
+      {
+        label: 'Mittleres Hochwasser (MHW)',
+        data: mhwLine,
+        borderColor: BSH_MHW,
+        borderWidth: 1.2, borderDash: [5,3],
+        pointRadius: 0, fill: false, tension: 0, order: 10,
+      },
+      {
+        label: 'Mittleres Niedrigwasser (MNW)',
+        data: mnwLine,
+        borderColor: BSH_MNW,
+        borderWidth: 1.2, borderDash: [5,3],
+        pointRadius: 0, fill: false, tension: 0, order: 10,
+      },
+    ];
+    // BSH-spezifisch: zusätzlich astro (Gezeitenvorausberechnung) + Kurvenvorhersage
+    if (isBSH && sampledAstro) {
+      datasets.push({
+        label: 'Gezeitenvorausberechnung (astro)',
+        data: sampledAstro.map(toCmNHN),
+        borderColor: BSH_GREEN,
+        borderWidth: 1.6,
+        pointRadius: 0, pointHoverRadius: 4,
+        fill: false, tension: 0.3,
+        order: 3,
+      });
+    }
+    if (isBSH && sampledFc) {
+      datasets.push({
+        label: 'Kurvenvorhersage (BSH)',
+        data: sampledFc.map(toCmNHN),
+        borderColor: BSH_ORANGE,
+        borderWidth: 1.8,
+        pointRadius: 0, pointHoverRadius: 4,
+        fill: false, tension: 0.3, spanGaps: false,
+        order: 2,
+      });
+    }
+    // Messwerte (bei BSH: measurement-Spalte, bei PEGELONLINE: Live-Wert)
+    datasets.push({
+      label: isBSH ? 'Messwert (BSH Live)' : 'Messwert (PEGELONLINE)',
+      data: sampled.map(m => toCmNHN(m.cm)),
+      borderColor: BSH_RED,
+      borderWidth: 2,
+      pointRadius: 0, pointHoverRadius: 4,
+      fill: false, tension: 0.25, spanGaps: false,
+      order: 1,
+    });
+    datasets.push({
+      label: isBSH ? 'Offizielle Scheitelwerte (HW/NW)' : 'Erkannte Scheitelwerte (HW/NW)',
+      data: scheitelData,
+      borderColor: 'transparent',
+      backgroundColor: BSH_BROWN,
+      pointStyle: 'rectRot',
+      pointRadius: 5, pointHoverRadius: 7,
+      pointBorderColor: BSH_BROWN,
+      pointBorderWidth: 1,
+      showLine: false,
+      order: 0,
+    });
+
+    gezeitenChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: baseOpts,
+      plugins: [dayBoundaryPlugin],
+    });
+  } else {
+    // Fallback: Scheitelwerte-Chart (7 Tage)
+    const week = all.filter(e => { const d=(e.dt-todayRef)/86400000; return d>=0&&d<7; });
+    gezeitenChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: week.map(e => `${e.day}.${String(e.month).padStart(2,'0')} ${String(e.hour).padStart(2,'0')}:${String(e.min).padStart(2,'0')}`),
+        datasets: [{
+          data: week.map(e => e.heightPNP),
+          borderColor: c.accent, borderWidth: 1.5,
+          pointBackgroundColor: week.map(e => e.typ==='H' ? c.accent : c.tick),
+          pointRadius: week.map(e => e.typ==='H' ? 4 : 3),
+          pointHoverRadius: 6,
+          fill: true,
+          backgroundColor: ctx2 => {
+            const g = ctx2.chart.ctx.createLinearGradient(0,0,0,160);
+            g.addColorStop(0, c.accentFill0); g.addColorStop(1, c.accentFill1); return g;
+          },
+          tension: 0.4,
+        }]
+      },
+      options: {
+        ...chartOptions({
+          yTicks: { callback: v => v.toFixed(1)+' m' },
+          scales: { y: { min: 3.0, max: 8.0 } },
+          tooltip: {
+            callbacks: { label: ctx => {
+              const e = week[ctx.dataIndex];
+              return ` ${e.typ==='H'?'▲ HW':'▼ NW'} · ${e.heightPNP.toFixed(2)} m PNP`;
+            }}
+          }
+        }),
+        animation: { duration: 400 }
+      }
+    });
+  }
+
+  // Stats
+  const mon = all.filter(e => useLive ? (e.dt.getMonth()+1===todayMonth) : (e.month===todayMonth));
+  const hwH = mon.filter(e=>e.typ==='H').map(e=>e.heightPNP);
+  const nwH = mon.filter(e=>e.typ==='N').map(e=>e.heightPNP);
+  const mnames = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const avgHW = hwH.length ? hwH.reduce((a,b)=>a+b,0)/hwH.length : 0;
+  const avgNW = nwH.length ? nwH.reduce((a,b)=>a+b,0)/nwH.length : 0;
+  const pnpForStats = useLive && bshApiData?.['PNP (unter NHN)']
+    ? (bshApiData['PNP (unter NHN)']/100).toFixed(2) : PNP_NHN;
+  const quelleLabel = isBSH ? 'BSH Live' : (isPegel ? 'PEGELONLINE' : 'BSH 2026');
+  // Header-Meta der Card entsprechend anpassen
+  const metaEl = document.getElementById('gezeiten-meta');
+  if (metaEl) {
+    if (isBSH) {
+      metaEl.textContent = 'BSH · Wasserstandsvorhersage · Hamburg St. Pauli, Elbe';
+    } else if (isPegel) {
+      metaEl.textContent = 'PEGELONLINE · Live-Messwerte · Hamburg-Harburg, Elbe';
+    } else {
+      metaEl.textContent = 'BSH 2026 · Statische Vorausberechnung · Hamburg-Harburg';
+    }
+  }
+  document.getElementById('gezeiten-stats').innerHTML = [
+    ['Max HW ' + mnames[todayMonth-1], hwH.length ? Math.max(...hwH).toFixed(2)+' m' : '—'],
+    ['Min NW ' + mnames[todayMonth-1], nwH.length ? Math.min(...nwH).toFixed(2)+' m' : '—'],
+    ['Ø Tidenhub', (avgHW-avgNW).toFixed(2)+' m'],
+    ['PNP → NHN', pnpForStats+' m'],
+    ['Quelle', quelleLabel],
+  ].map(([lbl,val])=>`<div class="g-stat"><div class="g-stat-lbl">${lbl}</div><div class="g-stat-val">${val}</div></div>`).join('');
+
+  const badge = document.getElementById('gezeiten-badge');
+  badge.textContent = useLive ? `${todayEvents.length} heute · Live` : `${todayEvents.length} heute`;
+  badge.className = useLive ? 'badge badge-ok' : 'badge badge-warn';
+}
+
+// ══════════════════════════════════════════
+//  REFRESH & COUNTDOWN
+// ══════════════════════════════════════════
+const REFRESH_MS = 15 * 60 * 1000;
+let nextAt, refreshTimer, countdownTimer;
+
+function updateCountdown() {
+  const diff = Math.max(0, nextAt - Date.now());
+  const m = Math.floor(diff/60000), s = Math.floor((diff%60000)/1000);
+  document.getElementById('next-refresh').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+function refreshAll() {
+  clearTimeout(refreshTimer); clearInterval(countdownTimer);
+
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  setTimeout(() => btn.classList.remove('spinning'), 500);
+
+  document.getElementById('footer-ts').textContent =
+    `Zuletzt aktualisiert: ${new Date().toLocaleString('de-DE')}`;
+
+  loadPegel();
+  renderBruecken(BRUECKEN_MOCK);
+  loadWetter();
+  if (tomtomKey) loadIncidents();
+  loadBSH().then(() => renderGezeiten());
+
+  nextAt = Date.now() + REFRESH_MS;
+  updateCountdown();
+  countdownTimer = setInterval(updateCountdown, 1000);
+  refreshTimer = setTimeout(refreshAll, REFRESH_MS);
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  refreshAll();
+  // Init map after a short delay to ensure card is rendered
+  setTimeout(initMap, 200);
+});
+</script>
+</body>
+</html>
