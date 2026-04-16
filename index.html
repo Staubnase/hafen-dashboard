@@ -97,6 +97,47 @@ header {
 
 .header-right { display: flex; align-items: center; gap: 10px; }
 
+/* Sturmflut-Warnung im Header */
+.storm-warning {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin: 0 16px; padding: 7px 14px;
+  border-radius: var(--r-sm);
+  background: #fee2e2;
+  border: 1.5px solid #dc2626;
+  color: #991b1b;
+  text-decoration: none;
+  font-family: var(--mono);
+  animation: stormPulse 1.8s ease-in-out infinite;
+  transition: transform .15s, box-shadow .15s;
+  max-width: 380px;
+}
+.storm-warning:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(220,38,38,.25);
+}
+.storm-warning.hidden { display: none; }
+.storm-icon {
+  font-size: 20px; line-height: 1;
+  color: #dc2626;
+  flex-shrink: 0;
+}
+.storm-text {
+  display: flex; flex-direction: column; gap: 1px;
+  min-width: 0;
+}
+.storm-text strong {
+  font-size: 12px; font-weight: 700; letter-spacing: .02em;
+  color: #991b1b;
+}
+.storm-sub {
+  font-size: 10px; color: #7f1d1d;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@keyframes stormPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(220,38,38,0); }
+}
+
 .live-indicator {
   display: flex; align-items: center; gap: 5px;
   font-size: 11px; font-weight: 500;
@@ -938,11 +979,11 @@ footer {
 .gezeiten-top-row .gezeiten-events {
   flex: 1 1 0;
   margin-top: 0;
-  align-self: stretch;
+  align-self: flex-start;    /* folgt Inhalt, kein Stretch → kein Whitespace unten */
 }
-/* Die drei Event-Cards sollen gleichmäßig die Höhe der Tabelle matchen */
+/* Cards kompakt: Inhalt oben, keine Dehnung */
 .gezeiten-top-row .gezeiten-events .tide-box {
-  display: flex; flex-direction: column; justify-content: space-between;
+  display: flex; flex-direction: column;
 }
 
 /* Kennwerte-Leiste einklappbar */
@@ -1019,6 +1060,15 @@ footer {
     <span class="header-title">Hafen Dashboard</span>
     <span class="header-subtitle">Hamburg · Live</span>
   </div>
+  <!-- Sturmflut-Warnung: wird per JS ein-/ausgeblendet -->
+  <a href="https://hydroonline.hpanet.de/details/storm" target="_blank" rel="noopener"
+     class="storm-warning hidden" id="storm-warning" title="Details zur Sturmflut">
+    <span class="storm-icon">⚠</span>
+    <span class="storm-text">
+      <strong>Achtung Sturmflut</strong>
+      <span class="storm-sub" id="storm-sub"></span>
+    </span>
+  </a>
   <div class="header-right">
     <div class="live-indicator"><div class="live-dot"></div>Live</div>
     <div class="refresh-timer" id="next-refresh">15:00</div>
@@ -3699,6 +3749,49 @@ function bshEventsFromApi() {
   return [];
 }
 
+// ══════════════════════════════════════════
+//  STURMFLUT-WARNUNG (Header-Banner)
+//  BSH-Definition einer Sturmflut Hamburg:
+//  leicht: MHW + 1.50 m · schwer: MHW + 2.50 m · sehr schwer: MHW + 3.50 m
+//  Wir lösen bei MHW + 1.50 m aus (leichte Sturmflut).
+// ══════════════════════════════════════════
+function updateStormWarning(events, mhwMeterPNP, nowRef) {
+  const el = document.getElementById('storm-warning');
+  const sub = document.getElementById('storm-sub');
+  if (!el || !sub) return;
+
+  const THRESHOLD = mhwMeterPNP + 1.50;   // PNP-Meter
+
+  // Fenster: jetzt bis Ende übernächster Tag (heute + morgen + übermorgen)
+  const endOfAfterTomorrow = new Date(nowRef);
+  endOfAfterTomorrow.setHours(0,0,0,0);
+  endOfAfterTomorrow.setDate(endOfAfterTomorrow.getDate() + 3);   // exklusiv
+
+  // Alle HW-Ereignisse ab jetzt bis Ende übernächsten Tag finden,
+  // die die Schwelle überschreiten. Höchsten Peak anzeigen.
+  const candidates = events.filter(e =>
+    e.typ === 'H' && e.dt >= nowRef && e.dt < endOfAfterTomorrow &&
+    e.heightPNP > THRESHOLD
+  );
+  if (!candidates.length) {
+    el.classList.add('hidden');
+    return;
+  }
+
+  // Höchsten Wert nehmen, dessen Datum/Uhrzeit wir anzeigen
+  const peak = candidates.reduce((a, b) => a.heightPNP > b.heightPNP ? a : b);
+  const weekdays = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const wd = weekdays[peak.dt.getDay()];
+  const t = `${String(peak.hour).padStart(2,'0')}:${String(peak.min).padStart(2,'0')}`;
+  const when = peak.dt.toDateString() === nowRef.toDateString() ? 'heute'
+             : peak.dt.toDateString() === new Date(nowRef.getTime()+86400000).toDateString() ? 'morgen'
+             : `${wd}. ${String(peak.day).padStart(2,'0')}.${String(peak.month).padStart(2,'0')}.`;
+  // Abweichung über MHW
+  const aboveMHW = peak.heightPNP - mhwMeterPNP;
+  sub.textContent = `${when} ${t} · ${peak.heightNHN.toFixed(2)} m NHN (+${aboveMHW.toFixed(2)} m über MHW)`;
+  el.classList.remove('hidden');
+}
+
 function renderGezeiten() {
   // useLive = wir haben LIVE-Daten (egal ob BSH oder PEGELONLINE)
   const isBSH = bshApiData?.source === 'bsh' && bshApiData?.hwnw_forecast?.data?.length > 0;
@@ -3714,6 +3807,12 @@ function renderGezeiten() {
   // MHW/MNW aus API, sonst Fallback (St. Pauli)
   const MHW = useLive && bshApiData?.MHW ? bshApiData.MHW/100 : 7.14;
   const MNW = useLive && bshApiData?.MNW ? bshApiData.MNW/100 : 3.31;
+
+  // ── Sturmflut-Warnung ──────────────────────
+  // Prüft HW-Scheitelwerte der nächsten 3 Tage (heute, morgen, übermorgen).
+  // Kriterium: vorhergesagter HW-Wasserstand > MHW + 1,50 m (PNP).
+  // Ist die Bedingung erfüllt → Warn-Banner im Header anzeigen mit Datum/Uhrzeit.
+  updateStormWarning(all, MHW, nowRef);
 
   // Scheitelwert-Tabelle
   //   Live (PEGELONLINE): erkannte HW/NW der letzten 7 Tage — neueste zuerst
