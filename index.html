@@ -320,12 +320,17 @@ main {
   font-weight: 500;
 }
 
-/* Hauptzeile: Uhrzeit + NHN-Wert nebeneinander, selbe Größe */
+/* Hauptzeile: links Zeit+Countdown, rechts NHN+PNP */
 .tide-main-row {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 10px;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px;
   margin-top: 2px;
 }
+.tide-col {
+  display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
+}
+.tide-col-right { align-items: flex-end; text-align: right; }
 .tide-time {
   font-size: 26px; font-weight: 600; font-family: var(--mono);
   letter-spacing: -0.03em; line-height: 1;
@@ -339,12 +344,13 @@ main {
 }
 .tide-height {
   font-size: 11px; color: var(--text-dim); font-family: var(--mono);
-  margin-top: 6px;
+  white-space: nowrap;
 }
 .tide-countdown {
   font-size: 11px; color: var(--text-dim);
-  font-family: var(--mono); margin-top: 4px;
+  font-family: var(--mono);
   font-weight: 500;
+  white-space: nowrap;
 }
 .tide-countdown.next { color: var(--yellow); }
 
@@ -657,7 +663,9 @@ body.gezeiten-fullscreen #gezeiten-card .chart-wrap {
 }
 
 /* Incident-Liste unter der Karte */
-.incidents-block { margin-top: 14px; }
+/* Meldungsliste nur im Vollbild der Verkehrs-Card anzeigen */
+.incidents-block { margin-top: 14px; display: none; }
+body.verkehr-fullscreen .incidents-block { display: block; }
 .incidents-head {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 8px;
@@ -930,13 +938,31 @@ footer {
 
 /* Gezeiten full layout */
 
-/* Scheitelwert-Tabelle direkt über dem Chart, kompakte Zeilenübersicht */
-.gezeiten-table-top {
+/* Obere Zeile: Tabelle links, Event-Cards rechts */
+.gezeiten-top-row {
+  display: flex;
+  gap: 16px;
   margin-top: 14px;
   margin-bottom: 14px;
+  align-items: stretch;
 }
-.gezeiten-table-top .pegel-table-wrap {
-  max-height: 180px;   /* ~4-5 Zeilen, dann scrollen */
+.gezeiten-top-table {
+  width: 360px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+}
+.gezeiten-top-table .pegel-table-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 220px;
+}
+.gezeiten-top-row .gezeiten-events {
+  flex: 1 1 0;
+  margin-top: 0;
+  align-self: stretch;
+}
+/* Die drei Event-Cards sollen gleichmäßig die Höhe der Tabelle matchen */
+.gezeiten-top-row .gezeiten-events .tide-box {
+  display: flex; flex-direction: column; justify-content: space-between;
 }
 
 /* Kennwerte-Leiste einklappbar */
@@ -1050,21 +1076,24 @@ footer {
       </div>
     </div>
 
-    <div class="gezeiten-today-pills" id="gezeiten-today"></div>
-
-    <!-- Scheitelwert-Tabelle über dem Chart (horizontal scrollbar) -->
-    <div class="gezeiten-table-top">
-      <div class="section-label">Nächste Ereignisse</div>
-      <div class="pegel-table-wrap">
-        <table class="data-table" id="bsh-table">
-          <thead>
-            <tr><th>Datum</th><th>Uhrzeit</th><th>Ereignis</th><th>Abw.</th></tr>
-          </thead>
-          <tbody id="bsh-tbody">
-            <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:12px">Lade…</td></tr>
-          </tbody>
-        </table>
+    <!-- Obere Zeile: Tabelle links, Event-Cards rechts -->
+    <div class="gezeiten-top-row">
+      <!-- Tabelle links -->
+      <div class="gezeiten-top-table">
+        <div class="section-label">Nächste Ereignisse</div>
+        <div class="pegel-table-wrap">
+          <table class="data-table" id="bsh-table">
+            <thead>
+              <tr><th>Datum</th><th>Uhrzeit</th><th>Ereignis</th><th>Abw.</th></tr>
+            </thead>
+            <tbody id="bsh-tbody">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:12px">Lade…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+      <!-- Event-Cards rechts (3 nächste HW/NW) -->
+      <div class="gezeiten-events" id="gezeiten-events"></div>
     </div>
 
     <!-- Chart über die volle Breite -->
@@ -1072,9 +1101,9 @@ footer {
       <canvas id="gezeiten-chart"></canvas>
     </div>
 
-    <!-- Kennwerte-Leiste, einklappbar -->
-    <div class="gezeiten-kennwerte" id="gezeiten-kennwerte">
-      <button class="kennwerte-toggle" onclick="toggleKennwerte()" aria-expanded="true">
+    <!-- Kennwerte-Leiste, standardmäßig eingeklappt -->
+    <div class="gezeiten-kennwerte collapsed" id="gezeiten-kennwerte">
+      <button class="kennwerte-toggle" onclick="toggleKennwerte()" aria-expanded="false">
         <span class="section-label" style="margin:0">Kennwerte</span>
         <span class="kennwerte-chevron">▾</span>
       </button>
@@ -1082,9 +1111,6 @@ footer {
         <div class="gezeiten-stats" id="gezeiten-stats"></div>
       </div>
     </div>
-
-    <!-- Events-Karten -->
-    <div class="gezeiten-events" id="gezeiten-events"></div>
   </div>
 
   <!-- PEGEL ─────────────────────────── -->
@@ -1198,7 +1224,7 @@ footer {
       <button class="map-toggle-btn" id="traffic-toggle" onclick="toggleTrafficLayer()" style="display:none">● Flow</button>
       <button class="map-toggle-btn" id="incident-toggle" onclick="toggleIncidentLayer()" style="display:none">⚠ Incidents</button>
       <button class="map-toggle-btn" id="markers-toggle" onclick="toggleMarkersLayer()" style="display:none">📍 Markers</button>
-      <button class="map-toggle-btn on" id="future-toggle" onclick="toggleFutureIncidents()" style="display:none">🔮 Geplant</button>
+      <button class="map-toggle-btn" id="future-toggle" onclick="toggleFutureIncidents()" style="display:none">🔮 Geplant</button>
     </div>
     <div class="map-legend">
       <div class="map-legend-item"><div class="legend-dot" style="background:#22c55e"></div>Freie Fahrt</div>
@@ -1547,7 +1573,7 @@ let tomtomKey = '';
 let flowVisible = false;
 let incidentVisible = false;
 let markersVisible = false;
-let showFutureIncidents = true;  // zeigt geplante zukünftige Vorfälle; togglebar via Button
+let showFutureIncidents = false;  // Geplante Vorfälle standardmäßig ausgeblendet; togglebar via Button
 
 const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 const TILE_ATTR  = '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> · © <a href="https://carto.com/" target="_blank">CARTO</a>';
@@ -1733,11 +1759,9 @@ function applyTrafficKey(key, autoActivate) {
     flowVisible = true;
     trafficIncidentLayer.addTo(osmMap);
     incidentVisible = true;
-    incidentMarkerLayer.addTo(osmMap);
-    markersVisible = true;
+    // Marker-Layer bleibt initial aus (nur Tile-basierte Incidents sichtbar)
     document.getElementById('traffic-toggle').classList.add('on');
     document.getElementById('incident-toggle').classList.add('on');
-    document.getElementById('markers-toggle').classList.add('on');
   }
 
   // Incident-Liste + Marker laden
@@ -1860,17 +1884,20 @@ function toggleKennwerte() {
   if (btn) btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
   try { sessionStorage.setItem('kennwerte_collapsed', collapsed ? '1' : '0'); } catch(e) {}
 }
-// Initial-State aus sessionStorage laden
+// Initial-State: standardmäßig eingeklappt, nur wenn User explizit aufgeklappt → aufklappen
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    if (sessionStorage.getItem('kennwerte_collapsed') === '1') {
+    const stored = sessionStorage.getItem('kennwerte_collapsed');
+    // stored === '0' → User hat explizit aufgeklappt
+    if (stored === '0') {
       const el = document.getElementById('gezeiten-kennwerte');
       if (el) {
-        el.classList.add('collapsed');
+        el.classList.remove('collapsed');
         const btn = el.querySelector('.kennwerte-toggle');
-        if (btn) btn.setAttribute('aria-expanded', 'false');
+        if (btn) btn.setAttribute('aria-expanded', 'true');
       }
     }
+    // Sonst bleibt es collapsed (default)
   } catch(e) {}
 });
 
@@ -3786,11 +3813,15 @@ function renderGezeiten() {
         <span class="tide-date-small">${wd}, ${e.day}.${String(e.month).padStart(2,'0')}.</span>
       </div>
       <div class="tide-main-row">
-        <span class="tide-time">${t}</span>
-        <span class="tide-nhn">${e.heightNHN.toFixed(2)} m NHN</span>
+        <div class="tide-col tide-col-left">
+          <span class="tide-time">${t}</span>
+          <span class="tide-countdown${isNext?' next':''}">${countdown}</span>
+        </div>
+        <div class="tide-col tide-col-right">
+          <span class="tide-nhn">${e.heightNHN.toFixed(2)} m NHN</span>
+          <span class="tide-height">${e.heightPNP.toFixed(2)} m PNP</span>
+        </div>
       </div>
-      <div class="tide-height">${e.heightPNP.toFixed(2)} m PNP</div>
-      <div class="tide-countdown${isNext?' next':''}">${countdown}</div>
     </div>`;
   }).join('');
 
