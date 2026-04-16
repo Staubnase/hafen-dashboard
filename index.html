@@ -141,48 +141,21 @@ header {
 .btn-icon.spinning { animation: spin 0.5s ease; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Header: Wichtige Links Dropdown */
-.header-links { position: relative; }
-.btn-links {
-  height: 32px; padding: 0 12px;
+/* Header: direkte Link-Buttons */
+.nav-link {
+  height: 32px;
+  padding: 0 12px;
   border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--text-muted);
-  cursor: pointer;
   font-family: var(--mono); font-size: 11px;
-  display: flex; align-items: center; gap: 4px;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-.btn-links:hover {
-  background: var(--bg2); border-color: var(--border2); color: var(--text);
-}
-.links-menu {
-  position: absolute; top: calc(100% + 6px); right: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  box-shadow: 0 8px 24px rgba(0,0,0,.12);
-  min-width: 260px;
-  padding: 4px;
-  display: none;
-  z-index: 100;
-}
-.links-menu.open { display: block; }
-.link-item {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 10px 12px;
-  border-radius: 6px;
+  display: inline-flex; align-items: center; gap: 5px;
   text-decoration: none;
-  color: var(--text);
-  transition: background .12s;
+  transition: background .12s, border-color .12s, color .12s;
 }
-.link-item:hover { background: var(--bg2); }
-.link-title {
-  font-size: 12px; font-weight: 600;
-}
-.link-desc {
-  font-size: 10px; color: var(--text-dim); font-family: var(--mono);
+.nav-link:hover {
+  background: var(--bg2); border-color: var(--border2); color: var(--text);
 }
 
 /* ═══════════════════════════════════════
@@ -851,7 +824,7 @@ footer {
 /* Pegel mini stats — vertikal gestapelt, gleichmäßig verteilt, nowrap */
 .pegel-mini-stats {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1.3fr;
   gap: 6px;
   margin-bottom: 12px;
 }
@@ -954,11 +927,13 @@ footer {
 .gezeiten-top-table {
   width: 280px; flex-shrink: 0;
   display: flex; flex-direction: column;
+  align-self: stretch;
 }
 .gezeiten-top-table .pegel-table-wrap {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
-  max-height: 220px;
+  max-height: none;
+  height: 100%;
 }
 .gezeiten-top-row .gezeiten-events {
   flex: 1 1 0;
@@ -1047,15 +1022,7 @@ footer {
   <div class="header-right">
     <div class="live-indicator"><div class="live-dot"></div>Live</div>
     <div class="refresh-timer" id="next-refresh">15:00</div>
-    <div class="header-links">
-      <button class="btn-links" onclick="toggleLinksMenu(event)" title="Wichtige Links">🔗 Wichtige Links ▾</button>
-      <div class="links-menu" id="links-menu">
-        <a href="https://hydroonline.hpanet.de/tide/table" target="_blank" rel="noopener" class="link-item">
-          <span class="link-title">HPA HydroOnline</span>
-          <span class="link-desc">Pegel, Tide &amp; WADI · Intranet</span>
-        </a>
-      </div>
-    </div>
+    <a href="https://hydroonline.hpanet.de/bridge/table" target="_blank" rel="noopener" class="nav-link" title="HPA HydroOnline">🌊 HydroOnline</a>
     <button class="btn-icon" id="refresh-btn" onclick="refreshAll()" title="Aktualisieren">↻</button>
   </div>
 </header>
@@ -1081,9 +1048,11 @@ footer {
       </div>
     </div>
 
-    <!-- Obere Zeile: Tabelle links, Event-Cards rechts -->
+    <!-- Obere Zeile: Event-Cards links, Tabelle rechts -->
     <div class="gezeiten-top-row">
-      <!-- Tabelle links -->
+      <!-- Event-Cards links (3 nächste HW/NW) -->
+      <div class="gezeiten-events" id="gezeiten-events"></div>
+      <!-- Tabelle rechts -->
       <div class="gezeiten-top-table">
         <div class="section-label">Nächste Ereignisse</div>
         <div class="pegel-table-wrap">
@@ -1097,8 +1066,6 @@ footer {
           </table>
         </div>
       </div>
-      <!-- Event-Cards rechts (3 nächste HW/NW) -->
-      <div class="gezeiten-events" id="gezeiten-events"></div>
     </div>
 
     <!-- Chart über die volle Breite -->
@@ -1127,15 +1094,8 @@ footer {
       </div>
       <span class="badge badge-idle" id="pegel-badge">Laden…</span>
     </div>
-    <!-- Kompakte Stat-Zeile: Aktuell (prominent) + letzte Tide HW/NW -->
+    <!-- Kompakte Stat-Zeile: Letztes HW | Letztes NW | Aktuell (rechts, prominent) -->
     <div class="pegel-mini-stats">
-      <div class="pms-item pms-now">
-        <span class="pms-lbl">Aktuell</span>
-        <div class="pms-now-row">
-          <span class="pms-now-val" id="pegel-now">—</span>
-          <span class="pms-trend" id="pegel-trend"></span>
-        </div>
-      </div>
       <div class="pms-item">
         <span class="pms-lbl">Letztes HW</span>
         <span class="pms-val" id="pegel-last-hw">—</span>
@@ -1145,6 +1105,13 @@ footer {
         <span class="pms-lbl">Letztes NW</span>
         <span class="pms-val" id="pegel-last-nw">—</span>
         <span class="pms-sub" id="pegel-last-nw-time"></span>
+      </div>
+      <div class="pms-item pms-now">
+        <span class="pms-lbl">Aktuell</span>
+        <div class="pms-now-row">
+          <span class="pms-now-val" id="pegel-now">—</span>
+          <span class="pms-trend" id="pegel-trend"></span>
+        </div>
       </div>
     </div>
     <!-- Tabelle -->
