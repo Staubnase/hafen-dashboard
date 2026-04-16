@@ -95,6 +95,100 @@ header {
   margin-left: 2px;
 }
 
+/* View-Switcher: zwei Tabs für Hauptansicht / Gezeitenvorausberechnung */
+.view-switcher {
+  display: inline-flex;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  margin: 0 12px;
+}
+.vs-btn {
+  padding: 7px 14px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--mono); font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+.vs-btn:last-child { border-right: none; }
+.vs-btn:hover { background: var(--bg2); color: var(--text); }
+.vs-btn.active {
+  background: var(--accent-bg); color: var(--accent); font-weight: 700;
+}
+
+/* Gezeiten-Full-View: ein zweites Dashboard das <main> ersetzt */
+.tide-view {
+  padding: 20px 24px;
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+}
+body.view-tide .tide-view { display: flex; }
+body.view-tide main { display: none; }
+body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass hidden bleibt */
+
+/* Header-Anpassung im Tide-View: Range-Selector aus der Main-Card wird hier dupliziert */
+.tide-view-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 16px 20px;
+}
+.tide-view-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 14px;
+}
+.tide-view-title {
+  font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
+}
+.tide-view-meta {
+  font-size: 10px; color: var(--text-dim); font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+.tide-view-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Chart + horizontaler Slider */
+.tide-chart-big-wrap {
+  height: 560px; width: 100%;
+  padding-top: 34px;
+  position: relative;
+}
+.tide-chart-big-wrap > canvas {
+  width: 100% !important; height: 100% !important; display: block;
+}
+.tide-scrub {
+  margin-top: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 12px 16px;
+}
+.tide-scrub-label {
+  display: flex; justify-content: space-between;
+  font-size: 10px; font-family: var(--mono); color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.tide-scrub input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.tide-scrub-row {
+  display: flex; gap: 12px; align-items: center;
+}
+.tide-scrub-row > label {
+  font-size: 10px; font-family: var(--mono); color: var(--text-dim);
+  min-width: 70px; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.tide-scrub-row input[type="range"] { flex: 1; }
+
 .header-right { display: flex; align-items: center; gap: 10px; }
 
 /* Sturmflut-Warnung im Header */
@@ -1015,7 +1109,7 @@ footer {
 .gezeiten-top-row .gezeiten-events {
   flex: 1 1 0;
   margin-top: 0;
-  align-self: flex-start;    /* folgt Inhalt, kein Stretch → kein Whitespace unten */
+  align-self: center;    /* vertikal zentriert neben der Tabelle */
 }
 /* Cards kompakt: Inhalt oben, keine Dehnung */
 .gezeiten-top-row .gezeiten-events .tide-box {
@@ -1095,6 +1189,11 @@ footer {
     <div class="logo-mark">⚓</div>
     <span class="header-title">Hafen Dashboard</span>
     <span class="header-subtitle">Hamburg · Live</span>
+  </div>
+  <!-- View-Switcher: Hauptdashboard ↔ Gezeitenvorausberechnung -->
+  <div class="view-switcher">
+    <button class="vs-btn active" data-view="main" onclick="switchView('main')">🏠 Hafen</button>
+    <button class="vs-btn" data-view="tide" onclick="switchView('tide')">📈 Gezeitenvorausberechnung</button>
   </div>
   <!-- Sturmflut-Warnung: wird per JS ein-/ausgeblendet -->
   <a href="https://hydroonline.hpanet.de/details/storm" target="_blank" rel="noopener"
@@ -1302,6 +1401,43 @@ footer {
 
 </main>
 
+<!-- ══ TIDE-VIEW: Gezeitenvorausberechnung Pegel Harburg ══ -->
+<div class="tide-view" id="tide-view">
+  <div class="tide-view-card">
+    <div class="tide-view-head">
+      <div>
+        <div class="tide-view-meta">PEGELONLINE · BSH · Hamburg-Harburg, Elbe</div>
+        <div class="tide-view-title">Gezeitenvorausberechnung — Pegel Harburg</div>
+      </div>
+      <div class="tide-view-actions">
+        <span class="badge badge-ok" id="tide-view-badge">Live</span>
+      </div>
+    </div>
+
+    <div class="tide-chart-big-wrap">
+      <canvas id="tide-big-chart"></canvas>
+    </div>
+
+    <!-- Scroll/Zoom-Leiste für den sichtbaren Zeitbereich -->
+    <div class="tide-scrub">
+      <div class="tide-scrub-label">
+        <span id="tide-scrub-from">—</span>
+        <span id="tide-scrub-to">—</span>
+      </div>
+      <div class="tide-scrub-row">
+        <label>Zeitfenster</label>
+        <input type="range" id="tide-scrub-window" min="6" max="168" step="1" value="72" />
+        <span id="tide-scrub-window-val" style="font-family:var(--mono);font-size:11px;color:var(--text-muted);min-width:60px;text-align:right">72 h</span>
+      </div>
+      <div class="tide-scrub-row" style="margin-top:8px">
+        <label>Position</label>
+        <input type="range" id="tide-scrub-offset" min="0" max="100" step="0.5" value="50" />
+        <button class="vs-btn active" style="padding:5px 10px;font-size:10px" onclick="tideBigJumpNow()">JETZT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <footer>
   <span>Hafen Dashboard Hamburg · v2.0</span>
   <span id="footer-ts">Zuletzt aktualisiert: —</span>
@@ -1451,8 +1587,8 @@ async function loadPegel() {
     } else { nwEl.textContent = '—'; nwTime.textContent = ''; }
 
     const trendEl = document.getElementById('pegel-trend');
-    if (diff > 2)       trendEl.innerHTML = '<span class="t-up">↑</span>';
-    else if (diff < -2) trendEl.innerHTML = '<span class="t-down">↓</span>';
+    if (diff > 2)       trendEl.innerHTML = '<span class="t-up">↗</span>';
+    else if (diff < -2) trendEl.innerHTML = '<span class="t-down">↘</span>';
     else                trendEl.innerHTML = '<span class="t-ok">→</span>';
 
     badge.textContent = `${toNHN(latest)} m`;
@@ -1464,7 +1600,7 @@ async function loadPegel() {
     tbody.innerHTML = tableRows.map((p, i) => {
       const prev2 = tableRows[i + 1];
       const d = prev2 ? p.val - prev2.val : 0;
-      const trend = d > 3 ? '<span class="t-up">↑</span>' : d < -3 ? '<span class="t-down">↓</span>' : '<span class="t-ok">→</span>';
+      const trend = d > 3 ? '<span class="t-up">↗</span>' : d < -3 ? '<span class="t-down">↘</span>' : '<span class="t-ok">→</span>';
       const date = p.ts.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'2-digit'});
       const time = p.ts.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
       return `<tr>
@@ -1529,7 +1665,7 @@ function renderPegelFallback() {
   document.getElementById('pegel-now').innerHTML = ((vals[vals.length-1]/100)-5.015).toFixed(2) + '<span>m NHN</span>';
   document.getElementById('pegel-max').innerHTML = ((Math.max(...vals)/100)-5.015).toFixed(2) + '<span>m NHN</span>';
   document.getElementById('pegel-min').innerHTML = ((Math.min(...vals)/100)-5.015).toFixed(2) + '<span>m NHN</span>';
-  document.getElementById('pegel-trend').innerHTML = '<span class="t-up">↑</span>';
+  document.getElementById('pegel-trend').innerHTML = '<span class="t-up">↗</span>';
   document.getElementById('pegel-badge').textContent = 'Demo';
   // Demo table
   const tbody = document.getElementById('pegel-tbody');
@@ -4273,8 +4409,18 @@ function renderGezeiten() {
   ].map(([lbl,val])=>`<div class="g-stat"><div class="g-stat-lbl">${lbl}</div><div class="g-stat-val">${val}</div></div>`).join('');
 
   const badge = document.getElementById('gezeiten-badge');
-  badge.textContent = useLive ? `${todayEvents.length} heute · Live` : `${todayEvents.length} heute`;
+  const todayCount = all.filter(e => {
+    return useLive
+      ? (e.dt.getDate()===todayDay && e.dt.getMonth()+1===todayMonth)
+      : (e.day===todayDay && e.month===todayMonth);
+  }).length;
+  badge.textContent = useLive ? `${todayCount} heute · Live` : `${todayCount} heute`;
   badge.className = useLive ? 'badge badge-ok' : 'badge badge-warn';
+
+  // Wenn der Tide-View gerade aktiv ist, auch den großen Chart aktualisieren
+  if (document.body.classList.contains('view-tide')) {
+    renderTideBig();
+  }
 }
 
 // ══════════════════════════════════════════
@@ -4310,6 +4456,324 @@ function refreshAll() {
   countdownTimer = setInterval(updateCountdown, 1000);
   refreshTimer = setTimeout(refreshAll, REFRESH_MS);
 }
+
+// ══════════════════════════════════════════
+//  TIDE-VIEW — großer Ganglinien-Dashboard
+// ══════════════════════════════════════════
+let tideBigChart = null;
+let tideBigWindowHours = 72;   // sichtbare Zeitspanne, Stunden
+let tideBigOffsetPct = 50;     // 0% = ganz Anfang, 100% = ganz Ende
+
+function switchView(view) {
+  document.body.classList.toggle('view-tide', view === 'tide');
+  document.querySelectorAll('.vs-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === view);
+  });
+  try { localStorage.setItem('dashboard_view', view); } catch(e) {}
+  if (view === 'tide') {
+    // Chart erstellen/updaten
+    setTimeout(renderTideBig, 50);
+  }
+}
+
+// Liefert ein kombiniertes Zeitreihen-Objekt für Harburg:
+//   - PEGELONLINE-Messwerte (letzte 7 Tage)
+//   - BSH-Vorhersage (Kurvenvorhersage + astro) wenn verfügbar
+// Fällt zurück auf PEGELONLINE allein, sonst statische BSH-Tabelle.
+function collectTideBigSeries() {
+  const src = bshApiData;
+  const result = {
+    astro: [],        // {ts, cm} — grüne astron. Gezeitenvorausberechnung
+    forecast: [],     // {ts, cm} — orange Kurvenvorhersage (BSH)
+    measure: [],      // {ts, cm} — rote Messkurve (PEGELONLINE)
+    peaks: [],        // {ts, cm, typ} — HW/NW-Scheitel
+    mhwCm: STPAULI_MHW_CM,
+    mnwCm: STPAULI_MNW_CM,
+    PNP: STPAULI_PNP_NHN_M,
+  };
+  if (!src) return result;
+
+  if (src.source === 'bsh' && src.curve_forecast?.data) {
+    src.curve_forecast.data.forEach(d => {
+      const ts = new Date(d.timestamp);
+      if (d.astro != null)         result.astro.push({ts, cm: d.astro});
+      if (d.curveforecast != null) result.forecast.push({ts, cm: d.curveforecast});
+      if (d.measurement != null)   result.measure.push({ts, cm: d.measurement});
+    });
+    (src.hwnw_forecast?.data || []).forEach(d => {
+      result.peaks.push({ts: new Date(d.timestamp), cm: d.value, typ: d.event === 'HW' ? 'H' : 'N'});
+    });
+    if (src.MHW) result.mhwCm = src.MHW;
+    if (src.MNW) result.mnwCm = src.MNW;
+    if (src['PNP (unter NHN)']) result.PNP = src['PNP (unter NHN)'] / 100;
+  } else if (src.peaks && src.measurements) {
+    // PEGELONLINE-Fallback: nur Messwerte + detektierte Peaks
+    src.measurements.forEach(m => result.measure.push({ts: m.ts, cm: m.cm}));
+    src.peaks.forEach(p => result.peaks.push({ts: p.ts, cm: p.cm, typ: p.typ}));
+  }
+  return result;
+}
+
+function renderTideBig() {
+  const ctx = document.getElementById('tide-big-chart')?.getContext('2d');
+  if (!ctx) return;
+  const s = collectTideBigSeries();
+
+  // Gesamtzeitbereich aller Serien ermitteln
+  const allTs = [...s.astro, ...s.forecast, ...s.measure].map(p => p.ts.getTime());
+  if (!allTs.length) {
+    // Nichts geladen — Chart abreißen
+    if (tideBigChart) { tideBigChart.destroy(); tideBigChart = null; }
+    return;
+  }
+  const tMin = Math.min(...allTs);
+  const tMax = Math.max(...allTs);
+  const totalMs = tMax - tMin;
+
+  // Sichtbarer Ausschnitt basierend auf Window + Offset
+  const windowMs = tideBigWindowHours * 3600000;
+  const maxOffsetMs = Math.max(0, totalMs - windowMs);
+  const offsetMs = maxOffsetMs * (tideBigOffsetPct / 100);
+  const viewStart = tMin + offsetMs;
+  const viewEnd   = Math.min(tMax, viewStart + windowMs);
+
+  // Filter + Downsample auf ~700 Punkte
+  const inView = p => {
+    const t = p.ts.getTime();
+    return t >= viewStart && t <= viewEnd;
+  };
+  const downsample = arr => {
+    const f = arr.filter(inView);
+    const step = Math.max(1, Math.floor(f.length / 700));
+    return f.filter((_, i) => i % step === 0);
+  };
+  const astro    = downsample(s.astro);
+  const forecast = downsample(s.forecast);
+  const measure  = downsample(s.measure);
+  const peaksIn  = s.peaks.filter(inView);
+
+  // Labels aus der längsten Serie (priorisiere measure)
+  const base = measure.length ? measure : (forecast.length ? forecast : astro);
+  if (!base.length) return;
+
+  const fmtLabel = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  const labels = base.map(p => fmtLabel(p.ts));
+
+  // Alle Serien auf base-X-Achse einpinnen (nearest-ts-Matching)
+  const pinTo = arr => {
+    if (!arr.length) return new Array(base.length).fill(null);
+    const out = new Array(base.length).fill(null);
+    let j = 0;
+    base.forEach((bp, i) => {
+      const tb = bp.ts.getTime();
+      while (j + 1 < arr.length && Math.abs(arr[j+1].ts.getTime() - tb) < Math.abs(arr[j].ts.getTime() - tb)) j++;
+      if (Math.abs(arr[j].ts.getTime() - tb) < 30 * 60 * 1000) out[i] = arr[j].cm;  // ≤30min
+    });
+    return out;
+  };
+  const toCmNHN = v => v == null ? null : Math.round(v + s.PNP * 100);
+  const measureCm  = pinTo(measure).map(toCmNHN);
+  const forecastCm = pinTo(forecast).map(toCmNHN);
+  const astroCm    = pinTo(astro).map(toCmNHN);
+
+  // Scheitel auf Labels pinnen
+  const peakData = new Array(base.length).fill(null);
+  peaksIn.forEach(p => {
+    let bestIdx = -1, bestDiff = Infinity;
+    base.forEach((bp, i) => {
+      const d = Math.abs(bp.ts.getTime() - p.ts.getTime());
+      if (d < bestDiff) { bestDiff = d; bestIdx = i; }
+    });
+    if (bestIdx >= 0) peakData[bestIdx] = toCmNHN(p.cm);
+  });
+
+  // MHW/MNW Linien
+  const mhwLine = new Array(base.length).fill(Math.round(s.mhwCm + s.PNP * 100));
+  const mnwLine = new Array(base.length).fill(Math.round(s.mnwCm + s.PNP * 100));
+
+  // Tages-Separator-Indizes
+  const dayBoundaryIndices = [];
+  let prevDay = base[0].ts.getDate();
+  base.forEach((p, i) => {
+    const day = p.ts.getDate();
+    if (day !== prevDay) { dayBoundaryIndices.push(i); prevDay = day; }
+  });
+
+  // Jetzt-Linie (nur wenn im View)
+  const nowTs = Date.now();
+  let nowIdx = -1;
+  if (nowTs >= viewStart && nowTs <= viewEnd) {
+    let best = Infinity;
+    base.forEach((p, i) => {
+      const d = Math.abs(p.ts.getTime() - nowTs);
+      if (d < best) { best = d; nowIdx = i; }
+    });
+  }
+
+  // Plugin-Stack: Arbeitszeit + Day-Separator + Jetzt + Wochentage
+  const workingHoursPlugin = {
+    id: 'tideBigWorkHours',
+    beforeDatasetsDraw(chart) {
+      const {ctx, chartArea, scales: {x}} = chart;
+      ctx.save();
+      ctx.fillStyle = 'rgba(160, 203, 232, 0.18)';
+      const firstDay = new Date(base[0].ts.getFullYear(), base[0].ts.getMonth(), base[0].ts.getDate());
+      const lastTs = base[base.length - 1].ts;
+      for (let d = new Date(firstDay); d <= lastTs; d.setDate(d.getDate() + 1)) {
+        const sev = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 7, 0, 0).getTime();
+        const fiv = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17, 0, 0).getTime();
+        let i7 = -1, i17 = -1;
+        for (let i = 0; i < base.length; i++) {
+          const t = base[i].ts.getTime();
+          if (i7 < 0 && t >= sev) i7 = i;
+          if (t <= fiv) i17 = i;
+        }
+        if (i7 >= 0 && i17 >= 0 && i17 > i7) {
+          const px1 = x.getPixelForValue(i7);
+          const px2 = x.getPixelForValue(i17);
+          ctx.fillRect(px1, chartArea.top, px2 - px1, chartArea.bottom - chartArea.top);
+        }
+      }
+      ctx.restore();
+    }
+  };
+  const overlayPlugin = {
+    id: 'tideBigOverlay',
+    afterDatasetsDraw(chart) {
+      const {ctx, chartArea, scales: {x}} = chart;
+      ctx.save();
+      // Tages-Separator
+      ctx.strokeStyle = '#c9c9c4'; ctx.lineWidth = 1;
+      dayBoundaryIndices.forEach(i => {
+        const px = x.getPixelForValue(i);
+        ctx.beginPath(); ctx.moveTo(px, chartArea.top); ctx.lineTo(px, chartArea.bottom); ctx.stroke();
+      });
+      // Wochentage
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 20px "DM Mono", monospace';
+      ctx.textAlign = 'center';
+      const segments = [0, ...dayBoundaryIndices, base.length - 1];
+      const wd = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+      for (let k = 0; k < segments.length - 1; k++) {
+        const mid = Math.floor((segments[k] + segments[k+1]) / 2);
+        const px = x.getPixelForValue(mid);
+        ctx.fillText(wd[base[mid].ts.getDay()], px, chartArea.top - 6);
+      }
+      // Jetzt-Linie
+      if (nowIdx >= 0) {
+        const px = x.getPixelForValue(nowIdx);
+        ctx.strokeStyle = '#E10105'; ctx.lineWidth = 2.2;
+        ctx.beginPath(); ctx.moveTo(px, chartArea.top); ctx.lineTo(px, chartArea.bottom); ctx.stroke();
+        // Jetzt-Pille
+        ctx.font = 'bold 10px "DM Mono", monospace';
+        const tw = ctx.measureText('Jetzt').width;
+        const bw = tw + 12, bh = 16, bx = px - bw/2, by = chartArea.top + 2;
+        ctx.fillStyle = '#E10105';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 3);
+        else ctx.rect(bx, by, bw, bh);
+        ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+        ctx.fillText('Jetzt', px, by + bh/2);
+        ctx.textBaseline = 'alphabetic';
+      }
+      ctx.restore();
+    }
+  };
+
+  // Chart bauen
+  const datasets = [
+    { label: 'Mittleres Hochwasser (MHW)', data: mhwLine, borderColor: '#A0CBE8', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
+    { label: 'Mittleres Niedrigwasser (MNW)', data: mnwLine, borderColor: '#FF9D9A', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
+  ];
+  if (astroCm.some(v => v != null)) {
+    datasets.push({ label: 'Astronomische Gezeitenvorausberechnung', data: astroCm, borderColor: '#3DDF02', borderWidth: 1.6, pointRadius:0, fill:false, tension:0.3, order:3 });
+  }
+  if (forecastCm.some(v => v != null)) {
+    datasets.push({ label: 'Kurvenvorhersage (BSH)', data: forecastCm, borderColor: '#DB8503', borderWidth: 1.8, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
+  }
+  if (measureCm.some(v => v != null)) {
+    datasets.push({ label: 'Messwert Harburg', data: measureCm, borderColor: '#E10105', borderWidth: 2, pointRadius:0, fill:false, tension:0.25, spanGaps:false, order:1 });
+  }
+  datasets.push({
+    label: 'Scheitelwerte (HW/NW)', data: peakData,
+    borderColor: 'transparent', backgroundColor: '#995D02', pointStyle: 'rectRot',
+    pointRadius: 5, pointHoverRadius: 7, pointBorderColor: '#995D02', pointBorderWidth: 1,
+    showLine: false, order: 0
+  });
+
+  const cCol = getChartColors();
+  const opts = chartOptions({
+    yTicks: { callback: v => v + ' cm', stepSize: 100 },
+    tooltip: {
+      callbacks: {
+        title: items => items[0] ? labels[items[0].dataIndex] : '',
+        label: ctx => {
+          if (ctx.parsed.y == null) return null;
+          if (ctx.dataset.label?.startsWith('Mittleres')) return null;
+          return ` ${ctx.dataset.label}: ${ctx.parsed.y} cm NHN`;
+        }
+      }
+    }
+  });
+  opts.plugins.legend = {
+    display: true, position: 'bottom',
+    labels: { font: { size: 11, family:'DM Mono' }, color: cCol.tick, boxWidth: 22, boxHeight: 2, padding: 12 }
+  };
+  opts.animation = { duration: 250 };
+  opts.scales.x.ticks.maxTicksLimit = 20;
+  opts.layout = { padding: { top: 34 } };
+
+  if (tideBigChart) tideBigChart.destroy();
+  tideBigChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: opts,
+    plugins: [workingHoursPlugin, overlayPlugin]
+  });
+
+  // Scrub-Labels updaten
+  const fmt = d => d.toLocaleString('de-DE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('tide-scrub-from').textContent = 'Von ' + fmt(new Date(viewStart));
+  document.getElementById('tide-scrub-to').textContent   = 'Bis ' + fmt(new Date(viewEnd));
+  document.getElementById('tide-scrub-window-val').textContent = tideBigWindowHours + ' h';
+}
+
+function tideBigJumpNow() {
+  // Stelle Position so, dass "jetzt" zentriert im View liegt
+  const s = collectTideBigSeries();
+  const allTs = [...s.astro, ...s.forecast, ...s.measure].map(p => p.ts.getTime());
+  if (!allTs.length) return;
+  const tMin = Math.min(...allTs), tMax = Math.max(...allTs);
+  const totalMs = tMax - tMin;
+  const windowMs = tideBigWindowHours * 3600000;
+  const maxOffsetMs = Math.max(1, totalMs - windowMs);
+  const targetStart = Date.now() - windowMs / 2;
+  const clamped = Math.max(tMin, Math.min(tMax - windowMs, targetStart));
+  tideBigOffsetPct = ((clamped - tMin) / maxOffsetMs) * 100;
+  const ofs = document.getElementById('tide-scrub-offset');
+  if (ofs) ofs.value = tideBigOffsetPct;
+  renderTideBig();
+}
+
+// Scrubber-Events
+document.addEventListener('DOMContentLoaded', () => {
+  const win = document.getElementById('tide-scrub-window');
+  const ofs = document.getElementById('tide-scrub-offset');
+  if (win) win.addEventListener('input', e => {
+    tideBigWindowHours = parseInt(e.target.value);
+    renderTideBig();
+  });
+  if (ofs) ofs.addEventListener('input', e => {
+    tideBigOffsetPct = parseFloat(e.target.value);
+    renderTideBig();
+  });
+  // View aus localStorage restaurieren
+  try {
+    const v = localStorage.getItem('dashboard_view');
+    if (v === 'tide') switchView('tide');
+  } catch(e) {}
+});
 
 // ══════════════════════════════════════════
 //  INIT
