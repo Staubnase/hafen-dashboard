@@ -456,9 +456,9 @@ main {
 .p-stat-val { font-size: 20px; font-weight: 600; font-family: var(--mono); letter-spacing: -0.02em; }
 .p-stat-val span { font-size: 12px; color: var(--text-muted); font-weight: 400; }
 .p-trend { font-size: 10px; font-weight: 500; margin-top: 2px; }
-.t-up   { color: var(--yellow); }
-.t-down { color: var(--accent); }
-.t-ok   { color: var(--green); }
+.t-up   { color: var(--green); }
+.t-down { color: var(--red); }
+.t-ok   { color: var(--yellow); }
 
 /* ═══════════════════════════════════════
 /* ═══════════════════════════════════════
@@ -854,13 +854,43 @@ footer {
 .data-table tbody tr:last-child { border-bottom: none; }
 .data-table tbody tr:hover { background: var(--bg2); }
 .data-table tbody td {
-  padding: 6px 10px; color: var(--text);
+  padding: 7px 10px; color: var(--text);
   white-space: nowrap;
 }
-.data-table tbody td:nth-child(3) { font-weight: 600; }
-.data-table .row-hw td { color: var(--accent); }
+.data-table tbody td:nth-child(3) { text-align: center; }
+
+/* HW: leicht blaue Zeile, fettes Badge in Datumsfarbe
+   NW: leicht graue Zeile mit anderer Badge-Farbe */
+.data-table .row-hw { background: rgba(0, 102, 255, 0.045); }
+.data-table .row-nw { background: rgba(0, 0, 0, 0.018); }
+.data-table .row-hw td { color: var(--text); }
 .data-table .row-nw td { color: var(--text-muted); }
-.data-table .row-hw td:nth-child(3) { color: var(--accent); font-weight: 700; }
+
+/* Ereignis-Badge-Pille in der 3. Spalte — sehr auffällig */
+.data-table .ev-badge {
+  display: inline-block;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px; border-radius: 100px;
+  line-height: 1.3;
+}
+.data-table .ev-badge.hw {
+  background: var(--accent-bg); color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(0,102,255,.25);
+}
+.data-table .ev-badge.nw {
+  background: #f3f4f6; color: #6b7280;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+}
+/* Typwechsel-Separator: dickere Linie zwischen HW und NW */
+.data-table .row-hw + .row-nw,
+.data-table .row-nw + .row-hw {
+  border-top: 2px solid var(--border2);
+}
+/* Abweichungsspalte rechts-ausgerichtet, fett */
+.data-table tbody td:nth-child(4) {
+  font-weight: 600; text-align: right;
+}
 
 /* Pegel mini stats — vertikal gestapelt, gleichmäßig verteilt, nowrap */
 .pegel-mini-stats {
@@ -925,7 +955,11 @@ footer {
   margin-top: 1px;
 }
 .pms-trend {
-  font-size: 14px; font-family: var(--mono); line-height: 1;
+  font-size: 22px; font-family: var(--mono); line-height: 1;
+  font-weight: 700;
+}
+.pms-trend .t-up, .pms-trend .t-down, .pms-trend .t-ok {
+  display: inline-block;
 }
 
 /* Pegel Referenzwerte Hamburg-Harburg */
@@ -1104,7 +1138,7 @@ footer {
       <div class="gezeiten-events" id="gezeiten-events"></div>
       <!-- Tabelle rechts -->
       <div class="gezeiten-top-table">
-        <div class="section-label">Nächste Ereignisse</div>
+        <div class="section-label">Abw. vom MHW/MNW</div>
         <div class="pegel-table-wrap">
           <table class="data-table" id="bsh-table">
             <thead>
@@ -1216,7 +1250,6 @@ footer {
       <div class="wetter-pills">
         <div class="w-pill">💨 <strong><span id="w-wind">—</span></strong> m/s</div>
         <div class="w-pill">🌧 <strong><span id="w-prec">—</span></strong> mm</div>
-        <div class="w-pill">🌡 WMO <strong><span id="w-code">—</span></strong></div>
       </div>
     </div>
     <button class="radar-toggle" onclick="toggleRadar()" id="radar-btn">🌊 Radar ausblenden</button>
@@ -1565,7 +1598,8 @@ async function loadWetter() {
     document.getElementById('w-temp').textContent = Math.round(c.temperature_2m);
     document.getElementById('w-wind').textContent = c.wind_speed_10m.toFixed(1);
     document.getElementById('w-prec').textContent = c.precipitation.toFixed(1);
-    document.getElementById('w-code').textContent = c.weather_code;
+    const codeEl = document.getElementById('w-code');
+    if (codeEl) codeEl.textContent = c.weather_code;
     document.getElementById('w-icon').textContent = WMO_I[c.weather_code] || '🌡';
     document.getElementById('w-desc').textContent = WMO[c.weather_code] || 'Unbekannt';
     badge.textContent = `${Math.round(c.temperature_2m)}°C`; badge.className='badge badge-ok';
@@ -3837,7 +3871,7 @@ function renderGezeiten() {
       return `<tr class="${cls}">
         <td>${dateStr}</td>
         <td>${timeStr}</td>
-        <td>${hw ? 'HW' : 'NW'}</td>
+        <td><span class="ev-badge ${hw?'hw':'nw'}">${hw ? 'HW' : 'NW'}</span></td>
         <td>${abwStr}</td>
       </tr>`;
     }).join('');
