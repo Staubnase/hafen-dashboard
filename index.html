@@ -803,19 +803,28 @@ footer {
 }
 
 /* Gezeiten full layout */
-.gezeiten-full-layout {
-  display: flex; gap: 20px; align-items: stretch;
+/* Untere Zeile unter dem Chart: Tabelle links | Stats + Events rechts */
+.gezeiten-bottom-row {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+  align-items: stretch;
 }
-.gezeiten-table-col {
-  width: 240px; flex-shrink: 0;
-  display: flex; flex-direction: column; min-height: 0;
+.gezeiten-bottom-table {
+  width: 280px; flex-shrink: 0;
+  display: flex; flex-direction: column;
 }
-.gezeiten-table-col .pegel-table-wrap {
+.gezeiten-bottom-table .pegel-table-wrap {
   flex: 1 1 0;
-  max-height: none;
   min-height: 0;
+  max-height: 260px;
 }
-/* Sektion-Überschrift: klein, dezent, einheitlich verwendet */
+.gezeiten-bottom-right {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* Section-Überschrift: klein, dezent */
 .section-label {
   font-size: 9px; font-family: var(--mono); color: var(--text-dim);
   text-transform: uppercase; letter-spacing: 0.1em;
@@ -823,8 +832,9 @@ footer {
 }
 
 @media (max-width: 1100px) {
-  .gezeiten-full-layout { flex-direction: column; }
-  .gezeiten-table-col { width: 100%; }
+  .gezeiten-bottom-row { flex-direction: column; }
+  .gezeiten-bottom-table { width: 100%; }
+  .gezeiten-bottom-table .pegel-table-wrap { max-height: 200px; }
   main { grid-template-columns: 1fr 1fr !important; }
   #gezeiten-card { grid-column: 1 / -1; grid-row: auto; }
   #pegel-card    { grid-column: 1 / -1; grid-row: auto; }
@@ -868,9 +878,15 @@ footer {
 
     <div class="gezeiten-today-pills" id="gezeiten-today"></div>
 
-    <div class="gezeiten-full-layout">
-      <!-- LINKE SPALTE: Scheitelwert-Tabelle -->
-      <div class="gezeiten-table-col">
+    <!-- Chart über die volle Breite -->
+    <div class="chart-wrap" style="height:440px;width:100%;padding-top:18px">
+      <canvas id="gezeiten-chart"></canvas>
+    </div>
+
+    <!-- Untere Zeile: Tabelle | Kennwerte-Leiste | Event-Karten -->
+    <div class="gezeiten-bottom-row">
+      <!-- Tabelle links -->
+      <div class="gezeiten-bottom-table">
         <div class="section-label">Nächste Ereignisse</div>
         <div class="pegel-table-wrap">
           <table class="data-table" id="bsh-table">
@@ -883,11 +899,10 @@ footer {
           </table>
         </div>
       </div>
-      <!-- RECHTE SPALTE: Chart (groß) → Kennwerte-Leiste → Events kompakt -->
-      <div class="gezeiten-body" style="flex:1 1 0;min-width:0;width:100%;display:flex;flex-direction:column;gap:14px">
-        <div class="chart-wrap" style="height:440px;width:100%;padding-top:18px"><canvas id="gezeiten-chart"></canvas></div>
-        <div class="gezeiten-stats" id="gezeiten-stats" style="width:100%"></div>
-        <div class="gezeiten-events" id="gezeiten-events" style="width:100%"></div>
+      <!-- Rechts: Kennwerte + Events übereinander -->
+      <div class="gezeiten-bottom-right">
+        <div class="gezeiten-stats" id="gezeiten-stats"></div>
+        <div class="gezeiten-events" id="gezeiten-events"></div>
       </div>
     </div>
   </div>
