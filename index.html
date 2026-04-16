@@ -3888,8 +3888,7 @@ function renderGezeiten() {
       prevDay = day;
     });
 
-    // Jetzt-Linie
-    const nowTs = Date.now();
+    // Jetzt-Linie (nowTs wurde weiter oben schon deklariert)
     let nowIdx = -1, nowBest = Infinity;
     sampled.forEach((m, i) => {
       const diff = Math.abs(m.ts.getTime() - nowTs);
