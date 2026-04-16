@@ -141,6 +141,50 @@ header {
 .btn-icon.spinning { animation: spin 0.5s ease; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Header: Wichtige Links Dropdown */
+.header-links { position: relative; }
+.btn-links {
+  height: 32px; padding: 0 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--mono); font-size: 11px;
+  display: flex; align-items: center; gap: 4px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.btn-links:hover {
+  background: var(--bg2); border-color: var(--border2); color: var(--text);
+}
+.links-menu {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  min-width: 260px;
+  padding: 4px;
+  display: none;
+  z-index: 100;
+}
+.links-menu.open { display: block; }
+.link-item {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text);
+  transition: background .12s;
+}
+.link-item:hover { background: var(--bg2); }
+.link-title {
+  font-size: 12px; font-weight: 600;
+}
+.link-desc {
+  font-size: 10px; color: var(--text-dim); font-family: var(--mono);
+}
+
 /* ═══════════════════════════════════════
    MAIN GRID
 ═══════════════════════════════════════ */
@@ -242,7 +286,7 @@ main {
 .tide-box {
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  padding: 10px 12px;
+  padding: 14px 16px;
   background: var(--surface2);
   position: relative;
   overflow: hidden;
@@ -262,33 +306,47 @@ main {
 
 .tide-box-top {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 .tide-type-pill {
-  font-size: 9px; font-weight: 600; font-family: var(--mono);
+  font-size: 10px; font-weight: 600; font-family: var(--mono);
   text-transform: uppercase; letter-spacing: 0.06em;
-  padding: 2px 7px; border-radius: 100px;
+  padding: 3px 8px; border-radius: 100px;
 }
 .tp-hw { background: var(--accent-bg); color: var(--accent); }
 .tp-nw { background: var(--bg2); color: var(--text-dim); }
 .tide-date-small {
-  font-size: 10px; color: var(--text-dim); font-family: var(--mono);
+  font-size: 12px; color: var(--text-muted); font-family: var(--mono);
+  font-weight: 500;
 }
 
+/* Hauptzeile: Uhrzeit + NHN-Wert nebeneinander, selbe Größe */
+.tide-main-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
 .tide-time {
-  font-size: 20px; font-weight: 600; font-family: var(--mono);
+  font-size: 26px; font-weight: 600; font-family: var(--mono);
   letter-spacing: -0.03em; line-height: 1;
   color: var(--text);
 }
+.tide-nhn {
+  font-size: 20px; font-weight: 600; font-family: var(--mono);
+  letter-spacing: -0.02em; line-height: 1;
+  color: var(--text);
+  white-space: nowrap;
+}
 .tide-height {
-  font-size: 10px; color: var(--text-muted); font-family: var(--mono);
-  margin-top: 3px;
+  font-size: 11px; color: var(--text-dim); font-family: var(--mono);
+  margin-top: 6px;
 }
 .tide-countdown {
-  font-size: 10px; color: var(--yellow);
-  font-family: var(--mono); margin-top: 3px;
+  font-size: 11px; color: var(--text-dim);
+  font-family: var(--mono); margin-top: 4px;
   font-weight: 500;
 }
+.tide-countdown.next { color: var(--yellow); }
 
 .gezeiten-right {}
 .gezeiten-today-pills {
@@ -448,7 +506,7 @@ main {
 .radar-toggle:hover { border-color: var(--border2); color: var(--text); }
 .radar-frame { display: block; margin-top: 8px; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); }
 .radar-frame.open { display: block; }
-.radar-frame iframe { width: 100%; height: 480px; border: none; display: block; }
+.radar-frame iframe { width: 100%; height: 640px; border: none; display: block; }
 
 /* ═══════════════════════════════════════
    VERKEHR / MAP CARD
@@ -493,6 +551,50 @@ body.verkehr-fullscreen #verkehr-card .map-wrap {
   height: auto !important;
   min-height: 0;
 }
+
+/* Gezeiten Vollbild-Modus (analog zu Verkehr) */
+body.gezeiten-fullscreen main > *:not(#gezeiten-card) { display: none !important; }
+body.gezeiten-fullscreen footer { display: none; }
+body.gezeiten-fullscreen header { display: none; }
+body.gezeiten-fullscreen #gezeiten-card {
+  position: fixed !important;
+  inset: 0;
+  z-index: 9999;
+  grid-column: unset !important; grid-row: unset !important;
+  border-radius: 0; border: none;
+  max-width: none; width: 100vw; height: 100vh;
+  margin: 0; padding: 20px 24px;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  overflow: auto;
+}
+body.gezeiten-fullscreen #gezeiten-card .chart-wrap {
+  flex: 1;
+  height: auto !important;
+  min-height: 400px;
+}
+
+/* Zeitraum-Auswahl (1 T / 3 T / 7 T) */
+.range-selector {
+  display: inline-flex;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.range-btn {
+  padding: 4px 10px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--mono); font-size: 11px;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.range-btn:last-child { border-right: none; }
+.range-btn:hover { background: var(--bg2); color: var(--text); }
+.range-btn.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
 
 .map-controls {
   display: flex; align-items: center; gap: 8px;
@@ -736,7 +838,7 @@ footer {
 /* Pegel mini stats — vertikal gestapelt, gleichmäßig verteilt, nowrap */
 .pegel-mini-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1.3fr 1fr 1fr;
   gap: 6px;
   margin-bottom: 12px;
 }
@@ -747,9 +849,28 @@ footer {
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  padding: 7px 9px;
+  padding: 9px 11px;
   min-width: 0;
   overflow: hidden;
+}
+/* "Aktuell"-Block: hebt sich ab mit großem Wert */
+.pms-now {
+  background: var(--surface);
+  border-color: var(--border2);
+  box-shadow: var(--shadow);
+}
+.pms-now-row {
+  display: flex; align-items: baseline; gap: 6px;
+  margin-top: 2px;
+}
+.pms-now-val {
+  font-size: 24px; font-weight: 600; font-family: var(--mono);
+  letter-spacing: -0.03em; line-height: 1;
+  color: var(--text);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px;
+}
+.pms-now-val span {
+  font-size: 12px; font-weight: 400; color: var(--text-muted);
 }
 .pms-lbl {
   font-size: 9px; color: var(--text-dim); font-family: var(--mono);
@@ -770,9 +891,14 @@ footer {
   font-size: 10px; font-weight: 400; color: var(--text-muted);
   white-space: nowrap;
 }
+/* Sekundäre Info unterhalb HW/NW-Wert: Uhrzeit, klein */
+.pms-sub {
+  font-size: 10px; font-family: var(--mono); color: var(--text-dim);
+  white-space: nowrap;
+  margin-top: 1px;
+}
 .pms-trend {
-  font-size: 11px; font-family: var(--mono); line-height: 1;
-  margin-left: 3px;
+  font-size: 14px; font-family: var(--mono); line-height: 1;
 }
 
 /* Pegel Referenzwerte Hamburg-Harburg */
@@ -803,26 +929,60 @@ footer {
 }
 
 /* Gezeiten full layout */
-/* Untere Zeile unter dem Chart: Tabelle links | Stats + Events rechts */
-.gezeiten-bottom-row {
-  display: flex;
-  gap: 16px;
+
+/* Scheitelwert-Tabelle direkt über dem Chart, kompakte Zeilenübersicht */
+.gezeiten-table-top {
   margin-top: 14px;
-  align-items: stretch;
+  margin-bottom: 14px;
 }
-.gezeiten-bottom-table {
-  width: 280px; flex-shrink: 0;
-  display: flex; flex-direction: column;
+.gezeiten-table-top .pegel-table-wrap {
+  max-height: 180px;   /* ~4-5 Zeilen, dann scrollen */
 }
-.gezeiten-bottom-table .pegel-table-wrap {
-  flex: 1 1 0;
-  min-height: 0;
-  max-height: 260px;
+
+/* Kennwerte-Leiste einklappbar */
+.gezeiten-kennwerte {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--surface2);
 }
-.gezeiten-bottom-right {
-  flex: 1 1 0; min-width: 0;
-  display: flex; flex-direction: column; gap: 10px;
+.kennwerte-toggle {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background .12s;
 }
+.kennwerte-toggle:hover { background: var(--bg2); }
+.kennwerte-chevron {
+  font-size: 11px; color: var(--text-dim);
+  transition: transform .2s ease;
+}
+.gezeiten-kennwerte.collapsed .kennwerte-chevron {
+  transform: rotate(-90deg);
+}
+.kennwerte-body {
+  max-height: 200px;
+  overflow: hidden;
+  transition: max-height .25s ease;
+}
+.gezeiten-kennwerte.collapsed .kennwerte-body {
+  max-height: 0;
+}
+/* Stats-Leiste im einklappbaren Kontext: Border entfernen (kommt jetzt vom Parent),
+   Radius nur oben entfernen */
+.gezeiten-kennwerte .gezeiten-stats {
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+
+/* Events unterhalb der Kennwerte-Leiste */
+.gezeiten-events { margin-top: 14px; }
 
 /* Section-Überschrift: klein, dezent */
 .section-label {
@@ -832,9 +992,6 @@ footer {
 }
 
 @media (max-width: 1100px) {
-  .gezeiten-bottom-row { flex-direction: column; }
-  .gezeiten-bottom-table { width: 100%; }
-  .gezeiten-bottom-table .pegel-table-wrap { max-height: 200px; }
   main { grid-template-columns: 1fr 1fr !important; }
   #gezeiten-card { grid-column: 1 / -1; grid-row: auto; }
   #pegel-card    { grid-column: 1 / -1; grid-row: auto; }
@@ -859,6 +1016,15 @@ footer {
   <div class="header-right">
     <div class="live-indicator"><div class="live-dot"></div>Live</div>
     <div class="refresh-timer" id="next-refresh">15:00</div>
+    <div class="header-links">
+      <button class="btn-links" onclick="toggleLinksMenu(event)" title="Wichtige Links">🔗 Wichtige Links ▾</button>
+      <div class="links-menu" id="links-menu">
+        <a href="https://hydroonline.hpanet.de/tide/table" target="_blank" rel="noopener" class="link-item">
+          <span class="link-title">HPA HydroOnline</span>
+          <span class="link-desc">Pegel, Tide &amp; WADI · Intranet</span>
+        </a>
+      </div>
+    </div>
     <button class="btn-icon" id="refresh-btn" onclick="refreshAll()" title="Aktualisieren">↻</button>
   </div>
 </header>
@@ -873,38 +1039,52 @@ footer {
         <div class="card-meta" id="gezeiten-meta">Live-Wasserstand · Hamburg-Harburg, Elbe</div>
         <div class="card-title">Gezeiten — Hochwasser & Niedrigwasser</div>
       </div>
-      <span class="badge badge-ok" id="gezeiten-badge">Geladen</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="range-selector" id="gezeiten-range">
+          <button class="range-btn" data-days="1" onclick="setGezeitenRange(1)">1 T</button>
+          <button class="range-btn active" data-days="3" onclick="setGezeitenRange(3)">3 T</button>
+          <button class="range-btn" data-days="7" onclick="setGezeitenRange(7)">7 T</button>
+        </div>
+        <span class="badge badge-ok" id="gezeiten-badge">Geladen</span>
+        <button class="expand-btn" id="gezeiten-expand-btn" onclick="toggleGezeitenFullscreen()" title="Vollbild">⛶</button>
+      </div>
     </div>
 
     <div class="gezeiten-today-pills" id="gezeiten-today"></div>
+
+    <!-- Scheitelwert-Tabelle über dem Chart (horizontal scrollbar) -->
+    <div class="gezeiten-table-top">
+      <div class="section-label">Nächste Ereignisse</div>
+      <div class="pegel-table-wrap">
+        <table class="data-table" id="bsh-table">
+          <thead>
+            <tr><th>Datum</th><th>Uhrzeit</th><th>Ereignis</th><th>Abw.</th></tr>
+          </thead>
+          <tbody id="bsh-tbody">
+            <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:12px">Lade…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <!-- Chart über die volle Breite -->
     <div class="chart-wrap" style="height:440px;width:100%;padding-top:18px">
       <canvas id="gezeiten-chart"></canvas>
     </div>
 
-    <!-- Untere Zeile: Tabelle | Kennwerte-Leiste | Event-Karten -->
-    <div class="gezeiten-bottom-row">
-      <!-- Tabelle links -->
-      <div class="gezeiten-bottom-table">
-        <div class="section-label">Nächste Ereignisse</div>
-        <div class="pegel-table-wrap">
-          <table class="data-table" id="bsh-table">
-            <thead>
-              <tr><th>Datum</th><th>Uhrzeit</th><th>Ereignis</th><th>Abw.</th></tr>
-            </thead>
-            <tbody id="bsh-tbody">
-              <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:12px">Lade…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <!-- Rechts: Kennwerte + Events übereinander -->
-      <div class="gezeiten-bottom-right">
+    <!-- Kennwerte-Leiste, einklappbar -->
+    <div class="gezeiten-kennwerte" id="gezeiten-kennwerte">
+      <button class="kennwerte-toggle" onclick="toggleKennwerte()" aria-expanded="true">
+        <span class="section-label" style="margin:0">Kennwerte</span>
+        <span class="kennwerte-chevron">▾</span>
+      </button>
+      <div class="kennwerte-body">
         <div class="gezeiten-stats" id="gezeiten-stats"></div>
-        <div class="gezeiten-events" id="gezeiten-events"></div>
       </div>
     </div>
+
+    <!-- Events-Karten -->
+    <div class="gezeiten-events" id="gezeiten-events"></div>
   </div>
 
   <!-- PEGEL ─────────────────────────── -->
@@ -916,20 +1096,24 @@ footer {
       </div>
       <span class="badge badge-idle" id="pegel-badge">Laden…</span>
     </div>
-    <!-- Kompakte Stat-Zeile -->
+    <!-- Kompakte Stat-Zeile: Aktuell (prominent) + letzte Tide HW/NW -->
     <div class="pegel-mini-stats">
-      <div class="pms-item">
+      <div class="pms-item pms-now">
         <span class="pms-lbl">Aktuell</span>
-        <span class="pms-val" id="pegel-now">—</span>
-        <span class="pms-trend" id="pegel-trend"></span>
+        <div class="pms-now-row">
+          <span class="pms-now-val" id="pegel-now">—</span>
+          <span class="pms-trend" id="pegel-trend"></span>
+        </div>
       </div>
       <div class="pms-item">
-        <span class="pms-lbl">Max 48h</span>
-        <span class="pms-val" id="pegel-max">—</span>
+        <span class="pms-lbl">Letztes HW</span>
+        <span class="pms-val" id="pegel-last-hw">—</span>
+        <span class="pms-sub" id="pegel-last-hw-time"></span>
       </div>
       <div class="pms-item">
-        <span class="pms-lbl">Min 48h</span>
-        <span class="pms-val" id="pegel-min">—</span>
+        <span class="pms-lbl">Letztes NW</span>
+        <span class="pms-val" id="pegel-last-nw">—</span>
+        <span class="pms-sub" id="pegel-last-nw-time"></span>
       </div>
     </div>
     <!-- Tabelle -->
@@ -1000,7 +1184,7 @@ footer {
     <div class="card-head">
       <div>
         <div class="card-meta">OpenStreetMap · Leaflet · TomTom Traffic</div>
-        <div class="card-title">Live-Verkehr Hamburg Hafen</div>
+        <div class="card-title">Live-Verkehr · Harburg / Süderelbe</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <span class="badge badge-ok" id="traffic-badge">OSM Live</span>
@@ -1024,7 +1208,7 @@ footer {
     </div>
     <div class="incidents-block">
       <div class="incidents-head">
-        <div class="card-meta">Aktuelle Meldungen · Hamburger Hafen</div>
+        <div class="card-meta">Aktuelle Meldungen · Harburg / Süderelbe</div>
         <span class="badge badge-idle" id="incidents-badge">—</span>
       </div>
       <div class="incidents-list" id="incidents-list">
@@ -1143,15 +1327,45 @@ async function loadPegel() {
     const toNHN = cm => ((cm / 100) + PNP_OFFSET).toFixed(2);
 
     const vals = pairs.map(p => p.val);
-    const max = Math.max(...vals), min = Math.min(...vals);
     const latest = pairs[pairs.length-1].val;
     const prev   = pairs[pairs.length-2]?.val ?? latest;
     const diff   = latest - prev;
 
-    // Mini stats
+    // Letztes HW und NW per Peak-Detection ermitteln
+    // (dieselbe Mechanik wie in loadBSH — über rollingMean + detectPeaks)
+    const measForPeaks = pairs.map(p => ({ ts: p.ts, cm: p.val }));
+    const smoothed = rollingMean(measForPeaks.map(m => m.cm), 15);
+    const peaks = detectPeaks(measForPeaks, smoothed, 180 * 60 * 1000);
+    // peaks sind chronologisch, jüngste am Ende
+    const lastHW = [...peaks].reverse().find(p => p.typ === 'H');
+    const lastNW = [...peaks].reverse().find(p => p.typ === 'N');
+
+    const fmtTime = d => d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+    const fmtDateShort = d => {
+      const today = new Date();
+      const isToday = d.toDateString() === today.toDateString();
+      if (isToday) return 'heute';
+      const y = new Date(today); y.setDate(y.getDate() - 1);
+      if (d.toDateString() === y.toDateString()) return 'gestern';
+      return d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'});
+    };
+
+    // Aktuell (prominent, groß)
     document.getElementById('pegel-now').innerHTML = toNHN(latest) + '<span>m NHN</span>';
-    document.getElementById('pegel-max').innerHTML = toNHN(max) + '<span>m NHN</span>';
-    document.getElementById('pegel-min').innerHTML = toNHN(min) + '<span>m NHN</span>';
+
+    // Letztes HW / NW
+    const hwEl    = document.getElementById('pegel-last-hw');
+    const hwTime  = document.getElementById('pegel-last-hw-time');
+    const nwEl    = document.getElementById('pegel-last-nw');
+    const nwTime  = document.getElementById('pegel-last-nw-time');
+    if (lastHW) {
+      hwEl.innerHTML   = toNHN(lastHW.cm) + '<span>m NHN</span>';
+      hwTime.textContent = `${fmtDateShort(lastHW.ts)} · ${fmtTime(lastHW.ts)}`;
+    } else { hwEl.textContent = '—'; hwTime.textContent = ''; }
+    if (lastNW) {
+      nwEl.innerHTML   = toNHN(lastNW.cm) + '<span>m NHN</span>';
+      nwTime.textContent = `${fmtDateShort(lastNW.ts)} · ${fmtTime(lastNW.ts)}`;
+    } else { nwEl.textContent = '—'; nwTime.textContent = ''; }
 
     const trendEl = document.getElementById('pegel-trend');
     if (diff > 2)       trendEl.innerHTML = '<span class="t-up">↑</span>';
@@ -1398,7 +1612,7 @@ function initMap() {
   if (osmMap) return;
 
   osmMap = L.map('osm-map', {
-    center: [53.527, 9.998],
+    center: [53.475, 9.985],    // Zentrum Harburger Hafen / Süderelbe
     zoom: 13,
     zoomControl: true,
     attributionControl: true,
@@ -1409,16 +1623,17 @@ function initMap() {
     attribution: TILE_ATTR, maxZoom: 19,
   }).addTo(osmMap);
 
-  // ── Points of interest — Fokus Reiherstiegschleuse + A1-Elbbrücken
+  // ── Points of interest — Fokus Hamburg-Harburg / Süderelbe / Harburger Binnenhafen
   const pois = [
-    { lat:53.5292, lng:9.9578, icon:'⚙️', name:'Reiherstiegschleuse',  type:'lock' },
-    { lat:53.5236, lng:10.0385,icon:'🛣',  name:'A1 Elbbrücken',        type:'highway' },
-    { lat:53.5441, lng:9.9683, icon:'⚓', name:'Hamburger Hafen',       type:'port' },
-    { lat:53.5439, lng:9.9552, icon:'🌉', name:'Köhlbrandbrücke',       type:'bridge' },
-    { lat:53.5367, lng:9.9738, icon:'🌉', name:'Kattwykbrücke',         type:'bridge' },
-    { lat:53.5463, lng:10.006, icon:'🎵', name:'Elbphilharmonie',       type:'poi' },
-    { lat:53.5499, lng:9.9840, icon:'🏭', name:'Speicherstadt',         type:'poi' },
-    { lat:53.5312, lng:10.006, icon:'🚢', name:'Blohm+Voss',            type:'industry' },
+    { lat:53.4716, lng:9.9817, icon:'⚓', name:'Harburger Binnenhafen',       type:'port' },
+    { lat:53.4693, lng:9.9839, icon:'🚂', name:'Harburg Bahnhof',             type:'poi' },
+    { lat:53.5006, lng:10.0180,icon:'🌉', name:'Norderelbbrücke',             type:'bridge' },
+    { lat:53.4960, lng:10.0163,icon:'🌉', name:'Süderelbbrücke',              type:'bridge' },
+    { lat:53.4910, lng:9.9880, icon:'🌉', name:'Kattwykbrücke',               type:'bridge' },
+    { lat:53.5236, lng:10.0385,icon:'🛣',  name:'A1 Elbbrücken',              type:'highway' },
+    { lat:53.4818, lng:9.9245, icon:'⚙️', name:'Harburger Schleuse',          type:'lock' },
+    { lat:53.4900, lng:9.9490, icon:'🏭', name:'Hafen Altenwerder / CTA',     type:'industry' },
+    { lat:53.5100, lng:9.9300, icon:'🚢', name:'Container Terminal Tollerort',type:'industry' },
   ];
   pois.forEach(p => {
     const col = p.type==='bridge' ? '#ca8a04'
@@ -1435,14 +1650,25 @@ function initMap() {
       .addTo(osmMap);
   });
 
-  // ── Harbour polygon
-  L.polygon([[53.558,9.940],[53.558,10.020],[53.522,10.025],[53.518,9.938]], {
+  // ── Polygon: Hafenbereich Süderelbe / Harburg
+  //   vom Alten Land im Westen bis A1-Brücken im Osten, zwischen Norder- und Süderelbe
+  L.polygon([
+    [53.510, 9.870],   // NW: Altenwerder West
+    [53.515, 10.060],  // NE: Elbbrücken Ost
+    [53.460, 10.045],  // SE: Wilhelmsburg/Harburg Ost
+    [53.450, 9.890],   // SW: Harburg West / Süderelbe West
+  ], {
     color:'#0066ff', weight:1.5, fillColor:'#0066ff', fillOpacity:0.04, dashArray:'4 4',
-  }).bindPopup('<b>Hamburger Hafen</b>').addTo(osmMap);
+  }).bindPopup('<b>Hafen Süderelbe · Harburg</b>').addTo(osmMap);
 
-  // ── Elbe river
-  L.polyline([[53.518,9.850],[53.520,9.900],[53.515,9.940],[53.514,9.980],[53.510,10.030],[53.505,10.080]],
-    { color:'#4d94ff', weight:3, opacity:0.3 }).bindPopup('Elbe').addTo(osmMap);
+  // ── Süderelbe-Verlauf (entlang des südlichen Elbarms)
+  L.polyline([
+    [53.470, 9.880],   // Süderelbe Mündung West
+    [53.478, 9.920],
+    [53.482, 9.960],
+    [53.487, 10.000],
+    [53.492, 10.040],  // Richtung Norderelbbrücken
+  ], { color:'#4d94ff', weight:3, opacity:0.35 }).bindPopup('Süderelbe').addTo(osmMap);
 
   // Default key — auto-activate traffic on load
   const DEFAULT_KEY = 'qGa9XMA5tt54CNmW8Ovn8mDxmVwbfsEi';
@@ -1571,6 +1797,19 @@ function toggleFutureIncidents() {
 
 // Verkehrs-Card in Vollbild schalten. Leaflet braucht invalidateSize()
 // damit die Kacheln sich an die neue Größe anpassen.
+// Wichtige-Links-Menu im Header auf-/zuklappen
+function toggleLinksMenu(ev) {
+  if (ev) ev.stopPropagation();
+  const menu = document.getElementById('links-menu');
+  if (menu) menu.classList.toggle('open');
+}
+// Klick außerhalb → Menu schließen
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('links-menu');
+  if (!menu || !menu.classList.contains('open')) return;
+  if (!e.target.closest('.header-links')) menu.classList.remove('open');
+});
+
 function toggleVerkehrFullscreen() {
   const isOn = document.body.classList.toggle('verkehr-fullscreen');
   const btn  = document.getElementById('verkehr-expand-btn');
@@ -1584,10 +1823,64 @@ function toggleVerkehrFullscreen() {
   }
 }
 
-// ESC beendet Vollbild
+// ══════════════════════════════════════════
+//  GEZEITEN — Vollbild + Zeitraum-Auswahl
+// ══════════════════════════════════════════
+let gezeitenRangeDays = 3;   // Default: 3 Tage
+
+function setGezeitenRange(days) {
+  gezeitenRangeDays = days;
+  // Button-Active-State
+  document.querySelectorAll('#gezeiten-range .range-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.days) === days);
+  });
+  // Chart + Tabelle neu rendern (Daten sind schon geladen)
+  if (typeof renderGezeiten === 'function') renderGezeiten();
+}
+
+function toggleGezeitenFullscreen() {
+  const isOn = document.body.classList.toggle('gezeiten-fullscreen');
+  const btn  = document.getElementById('gezeiten-expand-btn');
+  if (btn) {
+    btn.textContent = isOn ? '✕' : '⛶';
+    btn.title = isOn ? 'Vollbild beenden' : 'Vollbild';
+  }
+  // Chart muss auf neue Größe reagieren
+  if (gezeitenChart) {
+    setTimeout(() => gezeitenChart.resize(), 120);
+  }
+}
+
+// Kennwerte-Block ein-/ausklappen (Zustand in sessionStorage)
+function toggleKennwerte() {
+  const el = document.getElementById('gezeiten-kennwerte');
+  if (!el) return;
+  const collapsed = el.classList.toggle('collapsed');
+  const btn = el.querySelector('.kennwerte-toggle');
+  if (btn) btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  try { sessionStorage.setItem('kennwerte_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+}
+// Initial-State aus sessionStorage laden
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (sessionStorage.getItem('kennwerte_collapsed') === '1') {
+      const el = document.getElementById('gezeiten-kennwerte');
+      if (el) {
+        el.classList.add('collapsed');
+        const btn = el.querySelector('.kennwerte-toggle');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+      }
+    }
+  } catch(e) {}
+});
+
+// ESC beendet Vollbild (beide Cards)
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && document.body.classList.contains('verkehr-fullscreen')) {
+  if (e.key !== 'Escape') return;
+  if (document.body.classList.contains('verkehr-fullscreen')) {
     toggleVerkehrFullscreen();
+  } else if (document.body.classList.contains('gezeiten-fullscreen')) {
+    toggleGezeitenFullscreen();
   }
 });
 
@@ -1596,7 +1889,7 @@ document.addEventListener('keydown', (e) => {
 //  Bounding-Box: Hamburger Hafen (SW→NE)
 //  Quelle: developer.tomtom.com → /traffic/services/5/incidentDetails
 // ══════════════════════════════════════════
-const INCIDENT_BBOX = '9.85,53.40,10.15,53.60';  // minLon,minLat,maxLon,maxLat
+const INCIDENT_BBOX = '9.94,53.44,10.03,53.51';  // minLon,minLat,maxLon,maxLat — Hamburg-Harburg Hafen & Süderelbe
 
 // TomTom iconCategory → (Label, Severity-Klasse, Emoji)
 const INCIDENT_CATEGORY = {
@@ -3472,10 +3765,8 @@ function renderGezeiten() {
       }).join('')
     : '<span style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">Keine Ereignisse gefunden</span>';
 
-  // Live: letzte 3 Scheitelwerte (Vergangenheit) — für Fallback: nächste 3 (Zukunft)
-  const eventsList = useLive
-    ? [...all].sort((a, b) => b.dt - a.dt).slice(0, 3).reverse()
-    : all.filter(e => e.dt > nowRef).slice(0, 3);
+  // Immer die nächsten 3 zukünftigen Scheitelwerte anzeigen (HW/NW)
+  const eventsList = all.filter(e => e.dt > nowRef).slice(0, 3);
   const eventsEl = document.getElementById('gezeiten-events');
   eventsEl.innerHTML = eventsList.map((e, i) => {
     const t = `${String(e.hour).padStart(2,'0')}:${String(e.min).padStart(2,'0')}`;
@@ -3483,20 +3774,23 @@ function renderGezeiten() {
     const diff = e.dt - nowRef;
     const absDiff = Math.abs(diff);
     const hh = Math.floor(absDiff/3600000), mm = Math.floor((absDiff%3600000)/60000);
-    // Für Live = vergangene Events: "vor Xh Ymin"
-    // Für Fallback = zukünftige Events: "in Xh Ymin"
-    const countdown = useLive
-      ? (i === eventsList.length - 1 ? `vor ${hh}h ${mm}min` : '')
-      : (i === 0 ? `in ${hh}h ${mm}min` : '');
-    const isLatest = useLive ? (i === eventsList.length - 1) : (i === 0);
-    return `<div class="tide-box ${hw?'hw':'nw'}${isLatest?' next-up':''}">
+    // Timer für jede Box: "in Xh Ymin"
+    const countdown = `in ${hh}h ${mm}min`;
+    const isNext = i === 0;
+    // Datum: großzügig mit Wochentagkürzel
+    const weekdays = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+    const wd = weekdays[e.dt.getDay()];
+    return `<div class="tide-box ${hw?'hw':'nw'}${isNext?' next-up':''}">
       <div class="tide-box-top">
         <span class="tide-type-pill ${hw?'tp-hw':''}">${hw?'Hochwasser':'Niedrigwasser'}</span>
-        <span class="tide-date-small">${e.day}.${String(e.month).padStart(2,'0')}.</span>
+        <span class="tide-date-small">${wd}, ${e.day}.${String(e.month).padStart(2,'0')}.</span>
       </div>
-      <div class="tide-time">${t}</div>
-      <div class="tide-height">${e.heightPNP.toFixed(2)} m PNP · ${e.heightNHN.toFixed(2)} m NHN</div>
-      ${countdown ? `<div class="tide-countdown">${countdown}</div>` : ''}
+      <div class="tide-main-row">
+        <span class="tide-time">${t}</span>
+        <span class="tide-nhn">${e.heightNHN.toFixed(2)} m NHN</span>
+      </div>
+      <div class="tide-height">${e.heightPNP.toFixed(2)} m PNP</div>
+      <div class="tide-countdown${isNext?' next':''}">${countdown}</div>
     </div>`;
   }).join('');
 
@@ -3528,9 +3822,21 @@ function renderGezeiten() {
     //   peaks        = [{ts, cm, typ}, ...]
     let sampled, sampledAstro = null, sampledFc = null, peaksSrc;
 
+    // Zeitfenster: je nach Quelle
+    //   BSH (Vorhersage) → von "jetzt minus 6h" bis "jetzt + gezeitenRangeDays"
+    //                       (etwas Vergangenheit zeigen für Kontext der Messkurve)
+    //   PEGELONLINE (nur Messung) → letzte gezeitenRangeDays Tage
+    const nowTs = Date.now();
+    const rangeMs = gezeitenRangeDays * 86400000;
+    const windowStart = isBSH ? nowTs - 6 * 3600000 : nowTs - rangeMs;
+    const windowEnd   = isBSH ? nowTs + rangeMs      : nowTs;
+
+    const inWindow = ts => ts >= windowStart && ts <= windowEnd;
+
     if (isBSH) {
-      const curve = bshApiData.curve_forecast.data;
       // BSH-curve_forecast hat je Eintrag: {timestamp, astro, curveforecast, measurement} (cm PNP)
+      const curveAll = bshApiData.curve_forecast.data;
+      const curve = curveAll.filter(d => inWindow(new Date(d.timestamp).getTime()));
       const step = Math.max(1, Math.floor(curve.length / 600));
       const selected = curve.filter((_, i) => i % step === 0);
       sampled = selected.map(d => ({
@@ -3539,18 +3845,21 @@ function renderGezeiten() {
       }));
       sampledAstro = selected.map(d => d.astro ?? null);
       sampledFc    = selected.map(d => d.curveforecast ?? null);
-      // Peaks aus hwnw_forecast
-      peaksSrc = (bshApiData.hwnw_forecast?.data || []).map(d => ({
-        ts: new Date(d.timestamp),
-        cm: d.value,
-        typ: d.event === 'HW' ? 'H' : 'N',
-      }));
+      // Peaks aus hwnw_forecast — auch auf Fenster zuschneiden
+      peaksSrc = (bshApiData.hwnw_forecast?.data || [])
+        .filter(d => inWindow(new Date(d.timestamp).getTime()))
+        .map(d => ({
+          ts: new Date(d.timestamp),
+          cm: d.value,
+          typ: d.event === 'HW' ? 'H' : 'N',
+        }));
     } else {
       // PEGELONLINE-Fallback
-      const meas = bshApiData.measurements;
+      const measAll = bshApiData.measurements;
+      const meas = measAll.filter(m => inWindow(m.ts.getTime()));
       const step = Math.max(1, Math.floor(meas.length / 600));
       sampled = meas.filter((_, i) => i % step === 0);
-      peaksSrc = bshApiData.peaks || [];
+      peaksSrc = (bshApiData.peaks || []).filter(p => inWindow(p.ts.getTime()));
     }
 
     // Labels: dd.mm HH:MM
@@ -3615,6 +3924,39 @@ function renderGezeiten() {
     baseOpts.scales.x.ticks.maxTicksLimit = 14;
 
     // Plugin: Tages-Separator + Tages-Labels + Jetzt-Linie
+    // Arbeitszeit-Hintergrund (07-17 Uhr) — zeichnet hellblaue Bänder HINTER den Kurven
+    const workingHoursPlugin = {
+      id: 'bshWorkingHours',
+      beforeDatasetsDraw(chart) {
+        const {ctx, chartArea, scales: {x}} = chart;
+        ctx.save();
+        ctx.fillStyle = 'rgba(160, 203, 232, 0.18)';  // hellblau, passend zur MHW-Linie
+        // Für jeden Tag im Sampling: finde erste Stunde ≥7 und letzte ≤17
+        let dayStart = sampled[0]?.ts;
+        if (!dayStart) { ctx.restore(); return; }
+        // Alle Tage im Fenster durchgehen
+        const firstDay = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate());
+        const lastTs = sampled[sampled.length - 1].ts;
+        for (let d = new Date(firstDay); d <= lastTs; d.setDate(d.getDate() + 1)) {
+          const sevenAm = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 7, 0, 0).getTime();
+          const fivePm  = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17, 0, 0).getTime();
+          // nächstgelegene Sample-Indizes finden
+          let i7 = -1, i17 = -1;
+          for (let i = 0; i < sampled.length; i++) {
+            const t = sampled[i].ts.getTime();
+            if (i7 < 0 && t >= sevenAm) i7 = i;
+            if (t <= fivePm) i17 = i;
+          }
+          if (i7 >= 0 && i17 >= 0 && i17 > i7) {
+            const px1 = x.getPixelForValue(i7);
+            const px2 = x.getPixelForValue(i17);
+            ctx.fillRect(px1, chartArea.top, px2 - px1, chartArea.bottom - chartArea.top);
+          }
+        }
+        ctx.restore();
+      }
+    };
+
     const dayBoundaryPlugin = {
       id: 'bshDayBoundaries',
       afterDatasetsDraw(chart) {
@@ -3630,15 +3972,34 @@ function renderGezeiten() {
           ctx.lineTo(px, chartArea.bottom);
           ctx.stroke();
         });
+        // Jetzt-Linie: kräftiges Rot, durchgezogen, breiter — + kleines Label "Jetzt"
         if (nowIdx >= 0) {
-          ctx.strokeStyle = '#D99533';
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([3,3]);
           const px = x.getPixelForValue(nowIdx);
+          ctx.strokeStyle = '#E10105';
+          ctx.lineWidth = 2.2;
+          ctx.setLineDash([]);
           ctx.beginPath();
           ctx.moveTo(px, chartArea.top);
           ctx.lineTo(px, chartArea.bottom);
           ctx.stroke();
+          // Label-Pille oben
+          const label = 'Jetzt';
+          ctx.font = 'bold 10px "DM Mono", monospace';
+          const textW = ctx.measureText(label).width;
+          const padX = 6, padY = 3;
+          const boxW = textW + padX * 2;
+          const boxH = 16;
+          const boxX = px - boxW / 2;
+          const boxY = chartArea.top + 2;
+          ctx.fillStyle = '#E10105';
+          ctx.beginPath();
+          ctx.roundRect ? ctx.roundRect(boxX, boxY, boxW, boxH, 3) : ctx.rect(boxX, boxY, boxW, boxH);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, px, boxY + boxH / 2);
+          ctx.textBaseline = 'alphabetic';
         }
         ctx.setLineDash([]);
         ctx.fillStyle = '#555';
@@ -3723,7 +4084,7 @@ function renderGezeiten() {
       type: 'line',
       data: { labels, datasets },
       options: baseOpts,
-      plugins: [dayBoundaryPlugin],
+      plugins: [workingHoursPlugin, dayBoundaryPlugin],
     });
   } else {
     // Fallback: Scheitelwerte-Chart (7 Tage)
