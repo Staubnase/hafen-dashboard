@@ -324,9 +324,10 @@ main {
   margin-bottom: 8px;
 }
 .tide-type-pill {
-  font-size: 10px; font-weight: 600; font-family: var(--mono);
-  text-transform: uppercase; letter-spacing: 0.04em;
-  padding: 3px 8px; border-radius: 100px;
+  font-size: 11px; font-weight: 700;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  padding: 4px 10px; border-radius: 100px;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -869,9 +870,10 @@ footer {
 /* Ereignis-Badge-Pille in der 3. Spalte — sehr auffällig */
 .data-table .ev-badge {
   display: inline-block;
-  font-family: var(--mono); font-size: 10px; font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 2px 8px; border-radius: 100px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 3px 10px; border-radius: 100px;
   line-height: 1.3;
 }
 .data-table .ev-badge.hw {
@@ -1106,7 +1108,7 @@ footer {
   <div class="header-right">
     <div class="live-indicator"><div class="live-dot"></div>Live</div>
     <div class="refresh-timer" id="next-refresh">15:00</div>
-    <a href="https://hydroonline.hpanet.de/bridge/table" target="_blank" rel="noopener" class="nav-link" title="HPA HydroOnline">🌊 HydroOnline</a>
+    <a href="https://hydroonline.hpanet.de/bridge/table" target="_blank" rel="noopener" class="nav-link" title="HPA HydroOnline - Durchfahrtshöhen">🌊 HydroOnline - Durchfahrtshöhen</a>
     <button class="btn-icon" id="refresh-btn" onclick="refreshAll()" title="Aktualisieren">↻</button>
   </div>
 </header>
@@ -4037,9 +4039,9 @@ function renderGezeiten() {
     };
     baseOpts.animation = { duration: 400 };
     baseOpts.scales.x.ticks.maxTicksLimit = 14;
-    // Platz oben innerhalb der Chart-Area, damit Wochentag-Labels (Do/Fr/Sa)
-    // und die "Jetzt"-Pille nicht abgeschnitten werden
-    baseOpts.layout = { padding: { top: 22 } };
+    // Platz oben innerhalb der Chart-Area für die (größeren) Wochentag-Labels
+    // und die "Jetzt"-Pille — sonst würde Chart.js am Rand schneiden
+    baseOpts.layout = { padding: { top: 34 } };
 
     // Plugin: Tages-Separator + Tages-Labels + Jetzt-Linie
     // Arbeitszeit-Hintergrund (07-17 Uhr) — zeichnet hellblaue Bänder HINTER den Kurven
@@ -4120,8 +4122,8 @@ function renderGezeiten() {
           ctx.textBaseline = 'alphabetic';
         }
         ctx.setLineDash([]);
-        ctx.fillStyle = '#555';
-        ctx.font = '11px "DM Mono", monospace';
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 20px "DM Mono", monospace';
         ctx.textAlign = 'center';
         const segments = [0, ...dayBoundaryIndices, sampled.length - 1];
         const weekdays = ['So','Mo','Di','Mi','Do','Fr','Sa'];
@@ -4129,7 +4131,7 @@ function renderGezeiten() {
           const midIdx = Math.floor((segments[s] + segments[s+1]) / 2);
           const d = sampled[midIdx].ts;
           const px = x.getPixelForValue(midIdx);
-          ctx.fillText(weekdays[d.getDay()], px, chartArea.top - 4);
+          ctx.fillText(weekdays[d.getDay()], px, chartArea.top - 6);
         }
         ctx.restore();
       }
