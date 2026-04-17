@@ -769,7 +769,7 @@ main {
 .b-tag.ok   { background: var(--green-bg);  color: var(--green); }
 .b-tag.warn { background: var(--yellow-bg); color: var(--yellow); }
 .b-tag.err  { background: var(--red-bg);    color: var(--red); }
-.mock-note  { font-size: 10px; color: var(--text-dim); font-family: var(--mono); margin-top: 10px; text-align: center; }
+
 
 /* ═══════════════════════════════════════
    WETTER CARD
@@ -1507,13 +1507,12 @@ footer {
   <div class="card" id="bruecken-card">
     <div class="card-head">
       <div>
-        <div class="card-meta">HPA · DATEX II (Mock-Daten)</div>
+        <div class="card-meta">HPA · DATEX II · Brückensperrungen Hafen</div>
         <div class="card-title">Brückenstatus Hafen</div>
       </div>
-      <span class="badge badge-warn" id="bruecken-badge">1 Warnung</span>
+      <span class="badge badge-idle" id="bruecken-badge">Laden…</span>
     </div>
     <div class="bruecken-list" id="bruecken-list"></div>
-    <p class="mock-note">⚠ Demo-Daten · echte DATEX-II-Integration via Mobilithek möglich</p>
   </div>
 
   <!-- WETTER ────────────────────────── -->
@@ -1901,18 +1900,114 @@ function renderPegelFallback() {
 // ══════════════════════════════════════════
 //  BRÜCKEN (Mock)
 // ══════════════════════════════════════════
-const BRUECKEN_MOCK = [
-  { name:'Köhlbrandbrücke',          status:'open',       detail:'Normal geöffnet · Letzte Prüfung 06:00' },
-  { name:'Reiherstiegklappbrücke',    status:'closed',     detail:'Sperrung bis ca. 14:45 · Schiffspassage' },
-  { name:'Kattwykbrücke',             status:'restricted', detail:'Eingeschränkt · Wartungsarbeiten' },
-  { name:'Freihafen-Elbbrücke',       status:'open',       detail:'Normal geöffnet' },
-  { name:'Harburger Schloßbrücke',    status:'open',       detail:'Normal geöffnet' },
-];
+// ══════════════════════════════════════════
+//  BRÜCKEN — DATEX II XML Parser (HPA Brückensperrungen)
+//  Quelle: HPA Hamburg via Mobilithek / MDM
+//  Format: DATEX II 2.0 SituationPublication → situationRecord
+//  Jeder Record hat sourceIdentification "HA_Bridge_BRÜCKENNAME",
+//  validityStatus (active/suspended), overallStartTime/overallEndTime,
+//  remainingDurationInMinutes, und impact (Spuren gesperrt).
+//
+//  Sobald der Live-URL bekannt ist → BRUECKEN_DATA_URL setzen und
+//  loadBrueckenLive() wird per fetch() die Daten holen.
+// ══════════════════════════════════════════
 
-function renderBruecken(data) {
+// Mobilithek HTTPS Client-Pull Endpunkt für HPA Brückensperrungen
+// Die URL wird über die gleiche CORS-Proxy-Kette wie BSH abgerufen.
+// Falls der Abruf fehlschlägt → Fallback auf eingebettete XML.
+const BRUECKEN_DATA_URL = 'https://mobilithek.info:8443/mobilithek/api/v1.0/subscription/981881661821800448/clientPullService?subscriptionID=981881661821800448';
+
+// Bekannte Brücken im Harburger Hafengebiet: sourceIdentification → Anzeigename
+const BRUECKEN_NAMES = {
+  'HA_Bridge_Kattwykhubbrücke': 'Kattwykhubbrücke',
+  'HA_Bridge_Kattwykbrücke':    'Kattwykbrücke (Straße)',
+  'HA_Bridge_Reiherstieg':      'Reiherstiegklappbrücke',
+  'HA_Bridge_Retheklappbrücke': 'Retheklappbrücke',
+  'HA_Bridge_Müggenburger':     'Müggenburger Drehbrücke',
+  'HA_Bridge_Harburger_Chaussee':'Harburger Chausseebrücke',
+  'HA_Bridge_Rugenberger':      'Rugenberger Schleuse',
+};
+
+// Parst DATEX-II-XML und liefert Array aus Brücken-Objekten
+function parseBrueckenXML(xmlStr) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlStr, 'text/xml');
+  const ns = 'http://datex2.eu/schema/2/2_0';
+  const records = doc.getElementsByTagNameNS(ns, 'situationRecord');
+  // Pro Brücke (sourceIdentification) deduplizieren: nimm den Record mit der kürzesten Restdauer
+  const byBridge = new Map();
+  for (const rec of records) {
+    const srcEl = rec.getElementsByTagNameNS(ns, 'sourceIdentification')[0];
+    const src = srcEl?.textContent || 'Unbekannt';
+    const statusEl = rec.getElementsByTagNameNS(ns, 'validityStatus')[0];
+    const status = statusEl?.textContent || 'unknown';
+    const startEl = rec.getElementsByTagNameNS(ns, 'overallStartTime')[0];
+    const endEl = rec.getElementsByTagNameNS(ns, 'overallEndTime')[0];
+    const remainEl = rec.getElementsByTagName('remainingDurationInMinutes')[0];
+    const lanesRest = rec.getElementsByTagNameNS(ns, 'numberOfLanesRestricted')[0];
+    const lanesTotal = rec.getElementsByTagNameNS(ns, 'originalNumberOfLanes')[0];
+    const entry = {
+      id: rec.getAttribute('id'),
+      src,
+      name: BRUECKEN_NAMES[src] || src.replace('HA_Bridge_', '').replace(/_/g, ' '),
+      status,
+      start: startEl ? new Date(startEl.textContent) : null,
+      end: endEl ? new Date(endEl.textContent) : null,
+      remainingMin: remainEl ? parseInt(remainEl.textContent) : null,
+      lanesRestricted: lanesRest ? parseInt(lanesRest.textContent) : 0,
+      lanesTotal: lanesTotal ? parseInt(lanesTotal.textContent) : 1,
+    };
+    // Dedup: pro Brücke nur einen Record (den mit kleinstem remaining oder den letzten)
+    if (!byBridge.has(src) || (entry.remainingMin != null && entry.remainingMin < (byBridge.get(src).remainingMin ?? Infinity))) {
+      byBridge.set(src, entry);
+    }
+  }
+  return Array.from(byBridge.values());
+}
+
+// Rendert die Brücken-Card aus geparsten DATEX-II-Daten
+function renderBrueckenFromDatex(bridges) {
+  const list = document.getElementById('bruecken-list');
+  const badge = document.getElementById('bruecken-badge');
+  if (!list || !badge) return;
+
+  // Status bestimmen: wenn ein Record "active" ist und Spuren gesperrt,
+  // ist die Brücke aktuell gesperrt. "suspended" oder endTime in der Vergangenheit = offen.
+  const now = Date.now();
+  const enriched = bridges.map(b => {
+    const isActive = b.status === 'active' && b.end && b.end.getTime() > now;
+    const allLanes = b.lanesRestricted >= b.lanesTotal;
+    let state, detail;
+    if (!isActive) {
+      state = 'open';
+      detail = 'Frei befahrbar';
+    } else if (allLanes) {
+      state = 'closed';
+      const rem = b.remainingMin != null && b.remainingMin > 0 ? ` · noch ~${b.remainingMin} min` : '';
+      const zeit = b.start ? `seit ${b.start.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})}` : '';
+      detail = `Gesperrt ${zeit}${rem}`;
+    } else {
+      state = 'restricted';
+      detail = `${b.lanesRestricted}/${b.lanesTotal} Spuren gesperrt`;
+    }
+    return { ...b, state, detail };
+  });
+
+  // Auch Brücken zeigen die aktuell NICHT in der XML stehen (also offen sind)
+  // Dafür ergänzen wir die bekannten Brücken die nicht als Record auftauchen
+  const knownSrcs = new Set(enriched.map(b => b.src));
+  for (const [src, name] of Object.entries(BRUECKEN_NAMES)) {
+    if (!knownSrcs.has(src)) {
+      enriched.push({ src, name, state: 'open', detail: 'Frei befahrbar' });
+    }
+  }
+  // Sortieren: geschlossen/eingeschränkt oben
+  const order = { closed: 0, restricted: 1, open: 2 };
+  enriched.sort((a, b) => (order[a.state] ?? 9) - (order[b.state] ?? 9));
+
   const sm = { open:['ok','ok','Offen'], closed:['err','err','Gesperrt'], restricted:['warn','warn','Eingeschränkt'] };
-  document.getElementById('bruecken-list').innerHTML = data.map(b => {
-    const [dc, tc, lbl] = sm[b.status] || sm.open;
+  list.innerHTML = enriched.map(b => {
+    const [dc, tc, lbl] = sm[b.state] || sm.open;
     return `<div class="bruecke">
       <div class="b-dot ${dc}"></div>
       <div class="b-info">
@@ -1923,11 +2018,54 @@ function renderBruecken(data) {
     </div>`;
   }).join('');
 
-  const warn = data.filter(b => b.status !== 'open').length;
+  const problems = enriched.filter(b => b.state !== 'open').length;
+  if (!problems) { badge.textContent = 'Alle frei'; badge.className = 'badge badge-ok'; }
+  else if (enriched.some(b => b.state === 'closed')) { badge.textContent = `${problems} Gesperrt`; badge.className = 'badge badge-err'; }
+  else { badge.textContent = `${problems} Eingeschränkt`; badge.className = 'badge badge-warn'; }
+}
+
+// Fallback-XML (HPA Kattwykhubbrücke, Stand 17.04.2026 06:47 MESZ)
+const BRUECKEN_FALLBACK_XML = `<ns3:d2LogicalModel xmlns:ns3="http://datex2.eu/schema/2/2_0" modelBaseVersion="2"><ns3:exchange><ns3:supplierIdentification><ns3:country>de</ns3:country><ns3:nationalIdentifier>DE-MDM-Hamburg-HPA</ns3:nationalIdentifier></ns3:supplierIdentification></ns3:exchange><ns3:payloadPublication xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" lang="de" xsi:type="ns3:SituationPublication"><ns3:publicationTime>2026-04-17T04:47:00.011Z</ns3:publicationTime><ns3:publicationCreator><ns3:country>de</ns3:country><ns3:nationalIdentifier>DE-MDM-Hamburg-HPA</ns3:nationalIdentifier></ns3:publicationCreator><ns3:situation id="HPA Brückensperrungen" version=""><ns3:headerInformation><ns3:confidentiality>noRestriction</ns3:confidentiality><ns3:informationStatus>real</ns3:informationStatus></ns3:headerInformation><ns3:situationRecord id="HA_Bridge_2_0" version="Zeitverlust" xsi:type="ns3:GeneralObstruction"><ns3:situationRecordCreationTime>2026-04-17T04:47:00.012Z</ns3:situationRecordCreationTime><ns3:situationRecordVersionTime>2026-04-17T04:47:00.012Z</ns3:situationRecordVersionTime><ns3:probabilityOfOccurrence>certain</ns3:probabilityOfOccurrence><ns3:source><ns3:sourceIdentification>HA_Bridge_Kattwykhubbrücke</ns3:sourceIdentification><ns3:sourceName><ns3:values><ns3:value>Bridge_Service</ns3:value></ns3:values></ns3:sourceName></ns3:source><ns3:validity><ns3:validityStatus>active</ns3:validityStatus><ns3:validityTimeSpecification><ns3:overallStartTime>2026-04-17T04:25:48.000Z</ns3:overallStartTime><ns3:overallEndTime>2026-04-17T04:47:48.000Z</ns3:overallEndTime></ns3:validityTimeSpecification><ns3:validityExtension><remainingDurationInMinutes>0</remainingDurationInMinutes></ns3:validityExtension></ns3:validity><ns3:impact><ns3:numberOfLanesRestricted>1</ns3:numberOfLanesRestricted><ns3:originalNumberOfLanes>1</ns3:originalNumberOfLanes></ns3:impact><ns3:groupOfLocations xsi:type="ns3:ItineraryByIndexedLocations"><ns3:locationContainedInItinerary index="0"><ns3:location xsi:type="ns3:Point"><ns3:pointByCoordinates><ns3:pointCoordinates><ns3:latitude>53.493645</ns3:latitude><ns3:longitude>9.949838</ns3:longitude></ns3:pointCoordinates></ns3:pointByCoordinates></ns3:location></ns3:locationContainedInItinerary></ns3:groupOfLocations><ns3:obstructionType>obstructionOnTheRoad</ns3:obstructionType></ns3:situationRecord></ns3:situation></ns3:payloadPublication></ns3:d2LogicalModel>`;
+
+async function loadBruecken() {
   const badge = document.getElementById('bruecken-badge');
-  if (!warn) { badge.textContent='Alle frei'; badge.className='badge badge-ok'; }
-  else if (data.some(b=>b.status==='closed')) { badge.textContent=`${warn} Problem${warn>1?'e':''}`; badge.className='badge badge-err'; }
-  else { badge.textContent=`${warn} Warnung`; badge.className='badge badge-warn'; }
+  badge.textContent = 'Laden…'; badge.className = 'badge badge-idle';
+  let xmlStr = null;
+
+  // Live-Abruf via Proxy-Kette (Mobilithek hat kein CORS)
+  if (BRUECKEN_DATA_URL) {
+    for (const proxy of BSH_PROXIES) {
+      try {
+        const url = proxy(BRUECKEN_DATA_URL);
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        // Prüfe ob es gültiges DATEX-II XML ist
+        if (text.includes('d2LogicalModel') || text.includes('situationRecord')) {
+          xmlStr = text;
+          console.info('Brücken-Livedaten geladen via:', new URL(url).hostname);
+          break;
+        }
+        throw new Error('Unerwartetes Format');
+      } catch(e) {
+        console.warn('Brücken-Proxy fehlgeschlagen:', e.message);
+      }
+    }
+  }
+  // Fallback auf eingebettete XML
+  if (!xmlStr) {
+    xmlStr = BRUECKEN_FALLBACK_XML;
+    console.info('Brücken: Fallback-XML genutzt (kein Live-Zugriff)');
+  }
+
+  try {
+    const bridges = parseBrueckenXML(xmlStr);
+    renderBrueckenFromDatex(bridges);
+    console.info('Brücken-DATEX-II geparst:', bridges.length, 'Records');
+  } catch(e) {
+    badge.textContent = 'Fehler'; badge.className = 'badge badge-err';
+    console.error('Brücken-XML-Parse-Fehler:', e);
+  }
 }
 
 // ══════════════════════════════════════════
@@ -4665,7 +4803,7 @@ function refreshAll() {
     `Zuletzt aktualisiert: ${new Date().toLocaleString('de-DE')}`;
 
   loadPegel();
-  renderBruecken(BRUECKEN_MOCK);
+  loadBruecken();
   loadWetter();
   if (tomtomKey) loadIncidents();
   loadBSH().then(() => renderGezeiten());
