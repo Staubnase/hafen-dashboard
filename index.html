@@ -4110,9 +4110,11 @@ const BSH_TARGET_URL = 'https://wasserstand-nordsee.bsh.de/data/DE__508P.json'; 
 // Public CORS-Proxies in Reihenfolge probieren; auf GitHub Pages (https-Origin)
 // akzeptieren die im Gegensatz zu file://-Origin Requests.
 const BSH_PROXIES = [
-  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.org/?${encodeURIComponent(u)}`,
   u => `https://cors.eu.org/${u}`,
+  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  u => `https://api.cors.lol/?url=${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
 ];
 
 // --- PEGELONLINE Konfiguration (Fallback) ---
