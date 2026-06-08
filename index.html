@@ -272,9 +272,9 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 .tide-grid {
   display: grid;
   font-family: var(--mono); font-size: 10px;
-  /* Spalten: Datum-Spalte (80px) | "früh/spät"-Label (40px) | NW/HW-Zeiten (180px) | Zeitachse (scrollbar, min 1920px) */
-  grid-template-columns: 80px 40px 180px minmax(1920px, 1fr);
-  min-width: 100%;
+  /* Datum (120px) | früh/spät (36px) | Zeiten (170px) | Zeitachse (fix 2880px = 30px/15min → scrollbar) */
+  grid-template-columns: 120px 36px 170px 2880px;
+  min-width: calc(120px + 36px + 170px + 2880px);
 }
 .tide-grid-header {
   display: contents;
@@ -291,7 +291,7 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 /* Zeitachse: 96 Viertelstunden × 00 bis 24 Uhr → inneres Grid */
 .tide-grid-timeheader {
   display: grid;
-  grid-template-columns: repeat(96, 1fr);
+  grid-template-columns: repeat(96, 30px);
   background: var(--bg2);
   border-bottom: 1px solid var(--border2);
   position: sticky; top: 0; z-index: 5;
@@ -343,7 +343,7 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 /* Zeit-Raster-Zeile: selbes 96-Spalten-Grid wie der Header */
 .tide-row-grid {
   display: grid;
-  grid-template-columns: repeat(96, 1fr);
+  grid-template-columns: repeat(96, 30px);
   padding: 0;
   position: relative;
   min-height: 22px;
@@ -5368,8 +5368,17 @@ function renderTideTable() {
   if (!grid) return;
   const s = collectTideBigSeries();
   if (!s.peaks.length) {
-    grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-family:var(--mono);font-size:12px">Keine Scheitelwerte im Datensatz</div>';
+    grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-family:var(--mono);font-size:12px">Keine Scheitelwerte im Datensatz — BSH Live-Daten werden geladen…</div>';
     return;
+  }
+  // Hinweis wenn gewünschter Bereich über verfügbare Daten hinausgeht
+  const peakMax = Math.max(...s.peaks.map(p => p.ts.getTime()));
+  const dataRangeDays = Math.ceil((peakMax - viewStart) / 86400000);
+  if (dataRangeDays < tideRangeDays) {
+    const note = document.createElement('div');
+    note.style.cssText = 'padding:6px 12px;font-family:var(--mono);font-size:11px;color:var(--text-muted);background:var(--bg2);border:1px solid var(--border);border-radius:6px;margin-bottom:8px';
+    note.textContent = `ℹ BSH-Vorhersage verfügbar für ${dataRangeDays} Tage (angefordert: ${tideRangeDays} T)`;
+    grid.parentElement.insertBefore(note, grid);
   }
 
   // Aktueller Zeitbereich aus Datum + Anzahl Tage
@@ -5491,6 +5500,19 @@ function renderTideTable() {
   });
 
   grid.innerHTML = html;
+
+  // Zur aktuellen Uhrzeit scrollen (oder 07:00 Uhr als Regelarbeitszeit-Beginn)
+  requestAnimationFrame(() => {
+    const scroll = document.querySelector('.tide-grid-scroll');
+    if (!scroll) return;
+    const now = new Date();
+    const minuteOfDay = now.getHours() * 60 + now.getMinutes();
+    // 30px pro 15min = 2px/min; zentriere die aktuelle Zeit
+    const pxPerMin = 30 / 15;
+    const nowPx = 120 + 36 + 170 + minuteOfDay * pxPerMin; // linke Spalten + Zeitachse
+    const centerOffset = scroll.clientWidth / 2;
+    scroll.scrollLeft = Math.max(0, nowPx - centerOffset);
+  });
 }
 
 function tideBigJumpNow() {
