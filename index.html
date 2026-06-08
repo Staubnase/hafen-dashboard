@@ -4199,12 +4199,6 @@ async function loadBSH() {
       } : p;
 
       bshApiData = { ...data, source: 'bsh' };
-      if (hasOGC && p.curve?.length) {
-        console.info('[BSH DEBUG] curve[0] Rohfelder:', JSON.stringify(p.curve[0]));
-        console.info('[BSH DEBUG] curve_forecast.data[0]:', JSON.stringify(data.curve_forecast?.data?.[0]));
-      } else if (hasOGC) {
-        console.info('[BSH DEBUG] p.curve ist leer oder fehlt. p keys:', Object.keys(p).join(', '));
-      }
       console.info('BSH Live-Daten geladen via:', new URL(url).hostname, hasOGC ? '(OGC)' : '(legacy)');
       return true;
     } catch (e) {
@@ -4539,13 +4533,15 @@ function renderGezeiten() {
       const sampleEntry = curveAll.find(d => d.curveforecast != null || d.astro != null);
       const sampleRaw = sampleEntry?.curveforecast ?? sampleEntry?.astro;
       const curvesAreMetersNHN = sampleRaw != null && Math.abs(sampleRaw) < 50;
-      const toCurveNHN = v => v == null ? null
-        : curvesAreMetersNHN ? Math.round(v * 100)
-        : Math.round(v + PNP * 100);
+      // Werte können Strings sein ("724") → immer in Zahl konvertieren
+      const toNum = v => v == null ? null : +v;
+      const toCurveNHN = v => { const n = toNum(v); return n == null || isNaN(n) ? null
+        : curvesAreMetersNHN ? Math.round(n * 100)
+        : Math.round(n + PNP * 100); };
       const curve = curveAll.filter(d => inWindow(new Date(d.timestamp).getTime()));
       const step = Math.max(1, Math.floor(curve.length / 600));
       const selected = curve.filter((_, i) => i % step === 0);
-      const rawCm = d => d.measurement ?? d.curveforecast ?? d.astro;
+      const rawCm = d => toNum(d.measurement ?? d.curveforecast ?? d.astro);
       const sampledRaw = selected.map(d => ({
         ts: new Date(d.timestamp),
         cm: toCurveNHN(rawCm(d)),
