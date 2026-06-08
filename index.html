@@ -4117,6 +4117,7 @@ window._CF_WORKER_URL = 'https://hafen-dashboard.nico29-vogel.workers.dev';
 const BSH_PROXIES = [
   ...(window._CF_WORKER_URL ? [_ => `${window._CF_WORKER_URL}?target=bsh`] : []),
   _ => `proxy.php?target=bsh`,
+  u => `https://corsproxy.io/?apikey=bf339ca7&url=${encodeURIComponent(u)}`,
   u => `https://corsproxy.org/?${encodeURIComponent(u)}`,
   u => `https://cors.eu.org/${u}`,
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
