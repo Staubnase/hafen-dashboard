@@ -5371,6 +5371,11 @@ function renderTideTable() {
     grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-family:var(--mono);font-size:12px">Keine Scheitelwerte im Datensatz — BSH Live-Daten werden geladen…</div>';
     return;
   }
+  // Aktueller Zeitbereich aus Datum + Anzahl Tage
+  const win = tideRangeWindow();
+  const viewStart = win.startMs;
+  const viewEnd   = win.endMs;
+
   // Hinweis wenn gewünschter Bereich über verfügbare Daten hinausgeht
   const peakMax = Math.max(...s.peaks.map(p => p.ts.getTime()));
   const dataRangeDays = Math.ceil((peakMax - viewStart) / 86400000);
@@ -5380,11 +5385,6 @@ function renderTideTable() {
     note.textContent = `ℹ BSH-Vorhersage verfügbar für ${dataRangeDays} Tage (angefordert: ${tideRangeDays} T)`;
     grid.parentElement.insertBefore(note, grid);
   }
-
-  // Aktueller Zeitbereich aus Datum + Anzahl Tage
-  const win = tideRangeWindow();
-  const viewStart = win.startMs;
-  const viewEnd   = win.endMs;
 
   // Filter Peaks nach Typ und Zeitbereich
   const relevantPeaks = s.peaks.filter(p => {
