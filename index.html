@@ -4108,7 +4108,8 @@ function parseBSH() {
 // ══════════════════════════════════════════
 
 // --- BSH Konfiguration ---
-const BSH_TARGET_URL = 'https://wasserstand-nordsee.bsh.de/data/DE__508P.json';  // St. Pauli
+// BSH hat API auf OGC API umgestellt (gdi.bsh.de/ldproxy)
+const BSH_TARGET_URL = 'https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast/collections/waterlevelforecastdata/items/hamburg_st-pauli?f=json';
 // Proxy-Kette: zuerst lokaler nginx-Proxy (kein CORS-Problem), dann öffentliche Fallbacks.
 // Lokaler Proxy erfordert die nginx-Location-Blöcke aus dem Repo (nginx-proxy.conf).
 // ↓ Cloudflare Worker URL hier eintragen (z.B. https://hafen-proxy.DEIN-NAME.workers.dev)
@@ -4141,9 +4142,11 @@ async function loadBSH() {
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // Sanity-Check: BSH-JSON muss die bekannten Strukturen enthalten
-      if (json && (json.curve_forecast || json.hwnw_forecast)) {
-        bshApiData = { ...json, source: 'bsh' };
+      // Neues OGC API Format: Daten unter json.properties
+      // Altes Format: Daten direkt auf json
+      const data = json?.properties ?? json;
+      if (data && (data.curve_forecast || data.hwnw_forecast)) {
+        bshApiData = { ...data, source: 'bsh' };
         console.info('BSH Live-Daten geladen via:', new URL(url).hostname);
         return true;
       }

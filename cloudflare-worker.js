@@ -1,5 +1,5 @@
 const TARGETS = {
-  bsh:        'https://wasserstand-nordsee.bsh.de/data/DE__508P.json',
+  bsh:        'https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast/collections/waterlevelforecastdata/items/hamburg_st-pauli?f=json',
   mobilithek: 'https://mobilithek.info:8443/mobilithek/api/v1.0/subscription/981881661821800448/clientPullService?subscriptionID=981881661821800448',
 };
 
