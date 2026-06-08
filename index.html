@@ -233,6 +233,31 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 .tide-range-info span { font-weight: 600; color: var(--text); }
 .tide-range-sep { font-weight: 400 !important; color: var(--text-dim) !important; }
 
+/* Wasserstand-Filter in der Nav-Bar */
+.tide-nav-filter {
+  display: flex; align-items: center; gap: 8px;
+  margin-left: auto;
+  border-left: 1px solid var(--border);
+  padding-left: 20px;
+}
+.tide-filter-label {
+  font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+  white-space: nowrap;
+}
+.tide-filter-inputs {
+  display: flex; align-items: center; gap: 4px;
+}
+.tide-level-input {
+  width: 72px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-family: var(--mono); font-size: 12px;
+  padding: 3px 6px; text-align: right;
+  outline: none;
+}
+.tide-level-input:focus { border-color: var(--accent); }
+.tide-filter-sep { font-size: 13px; color: var(--text-muted); }
+.tide-filter-unit { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+
 /* ═══════════════════════════════════════
    TIDE TABLE MODE (wie im FARGE-Plan)
    Zeit-Raster mit 15-Min-Zellen, Ereignisse als grüne Balken,
@@ -1680,6 +1705,15 @@ footer {
           <span class="tide-range-sep">bis</span>
           <span id="tide-range-to-label">—</span>
         </span>
+      </div>
+      <div class="tide-nav-filter">
+        <span class="tide-filter-label">Wasserstand</span>
+        <div class="tide-filter-inputs">
+          <input type="number" id="tide-level-min" class="tide-level-input" placeholder="Min cm" step="10" oninput="setTideLevelFilter()" title="Minimum Wasserstand (cm NHN)" />
+          <span class="tide-filter-sep">–</span>
+          <input type="number" id="tide-level-max" class="tide-level-input" placeholder="Max cm" step="10" oninput="setTideLevelFilter()" title="Maximum Wasserstand (cm NHN)" />
+          <span class="tide-filter-unit">cm</span>
+        </div>
       </div>
     </div>
   </div>
@@ -5338,6 +5372,16 @@ function updateTideRangeLabels() {
 // ══════════════════════════════════════════
 let tideMode = 'chart';   // 'chart' | 'table'
 let tideHwNw = 'N';       // 'H' | 'N'
+let tideLevelMin = null;  // cm — untere Schwelle (null = kein Filter)
+let tideLevelMax = null;  // cm — obere Schwelle (null = kein Filter)
+
+function setTideLevelFilter() {
+  const minEl = document.getElementById('tide-level-min');
+  const maxEl = document.getElementById('tide-level-max');
+  tideLevelMin = minEl.value !== '' ? parseInt(minEl.value) : null;
+  tideLevelMax = maxEl.value !== '' ? parseInt(maxEl.value) : null;
+  renderTideTable();
+}
 
 function setTideMode(mode) {
   tideMode = mode;
@@ -5479,18 +5523,21 @@ function renderTideTable() {
       }
       // Balken: ±2h um den Peak. Position in % der 96 Spalten.
       if (p) {
-        const peakDay = new Date(p.ts.getFullYear(), p.ts.getMonth(), p.ts.getDate());
-        // Start/End in Minuten ab 00:00 des Peak-Tages (kann negativ oder >1440 sein → ans Tagesende clampen)
-        const startMin = ((p.ts.getTime() - peakDay.getTime()) / 60000) - 120;  // -2h
-        const endMin   = ((p.ts.getTime() - peakDay.getTime()) / 60000) + 120;  // +2h
-        // In diese Tageszeile eintragen (clamp 0..1440)
-        const s0 = Math.max(0, startMin);
-        const e0 = Math.min(1440, endMin);
-        if (s0 < 1440 && e0 > 0) {
-          const leftPct  = (s0 / 1440) * 100;
-          const widthPct = ((e0 - s0) / 1440) * 100;
-          const barCls = tideHwNw === 'H' ? 'tide-event-bar hw' : 'tide-event-bar';
-          html += `<div class="${barCls}" style="left:${leftPct}%;width:${widthPct}%"></div>`;
+        const levelOk = (tideLevelMin == null || p.cm >= tideLevelMin)
+                     && (tideLevelMax == null || p.cm <= tideLevelMax);
+        if (levelOk) {
+          const peakDay = new Date(p.ts.getFullYear(), p.ts.getMonth(), p.ts.getDate());
+          // Start/End in Minuten ab 00:00 des Peak-Tages (kann negativ oder >1440 sein → ans Tagesende clampen)
+          const startMin = ((p.ts.getTime() - peakDay.getTime()) / 60000) - 120;  // -2h
+          const endMin   = ((p.ts.getTime() - peakDay.getTime()) / 60000) + 120;  // +2h
+          const s0 = Math.max(0, startMin);
+          const e0 = Math.min(1440, endMin);
+          if (s0 < 1440 && e0 > 0) {
+            const leftPct  = (s0 / 1440) * 100;
+            const widthPct = ((e0 - s0) / 1440) * 100;
+            const barCls = tideHwNw === 'H' ? 'tide-event-bar hw' : 'tide-event-bar';
+            html += `<div class="${barCls}" style="left:${leftPct}%;width:${widthPct}%"></div>`;
+          }
         }
         // Falls der Balken in den nächsten/vorigen Tag reicht: das regeln wir im FARGE-Plan auch via overflow
         // (spart Komplexität — Hauptereignis liegt fast immer im Tag)
