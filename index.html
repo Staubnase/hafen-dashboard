@@ -1421,7 +1421,12 @@ footer {
       </div>
     </div>
 
-    <!-- Obere Zeile: Event-Cards links, Tabelle rechts -->
+    <!-- Chart oben, volle Breite -->
+    <div class="chart-wrap" style="height:480px;width:100%;padding-top:26px;margin-top:8px">
+      <canvas id="gezeiten-chart"></canvas>
+    </div>
+
+    <!-- Untere Zeile: Event-Cards links, Tabelle rechts -->
     <div class="gezeiten-top-row">
       <!-- Event-Cards links (3 nächste HW/NW) -->
       <div class="gezeiten-events" id="gezeiten-events"></div>
@@ -1439,11 +1444,6 @@ footer {
           </table>
         </div>
       </div>
-    </div>
-
-    <!-- Chart über die volle Breite -->
-    <div class="chart-wrap" style="height:520px;width:100%;padding-top:26px">
-      <canvas id="gezeiten-chart"></canvas>
     </div>
 
     <!-- Kennwerte-Leiste, standardmäßig eingeklappt -->
@@ -4495,7 +4495,7 @@ function renderGezeiten() {
     //   sampledAstro = [cm PNP oder null, ...] (nur BSH)
     //   sampledFc    = [cm PNP oder null, ...] (nur BSH, Kurvenvorhersage)
     //   peaks        = [{ts, cm, typ}, ...]
-    let sampled, sampledAstro = null, sampledFc = null, peaksSrc;
+    let sampled, sampledAstro = null, sampledFc = null, peaksSrc, bshIsInterpolated = false;
 
     // Zeitfenster: je nach Quelle
     //   BSH (Vorhersage) → von "jetzt minus 6h" bis "jetzt + gezeitenRangeDays"
@@ -4529,6 +4529,7 @@ function renderGezeiten() {
           typ: d.event === 'HW' ? 'H' : 'N',
         }));
     } else if (isBSH) {
+      bshIsInterpolated = true;
       // OGC-API: nur hwnw_forecast — sinusförmige Interpolation zwischen HW/NW
       const allPeaks = (bshApiData.hwnw_forecast?.data || [])
         .map(d => ({ ts: new Date(d.timestamp), cm: d.value, typ: d.event === 'HW' ? 'H' : 'N' }))
@@ -4764,14 +4765,18 @@ function renderGezeiten() {
         order: 2,
       });
     }
-    // Messwerte (bei BSH: measurement-Spalte, bei PEGELONLINE: Live-Wert)
+    // Messwerte / Vorhersagekurve
+    const lineLabel = bshIsInterpolated
+      ? 'Gezeitenvorhersage (BSH)'
+      : (isBSH ? 'Messwert (BSH Live)' : 'Messwert (PEGELONLINE)');
+    const lineColor = bshIsInterpolated ? BSH_ORANGE : BSH_RED;
     datasets.push({
-      label: isBSH ? 'Messwert (BSH Live)' : 'Messwert (PEGELONLINE)',
+      label: lineLabel,
       data: sampled.map(m => toCmNHN(m.cm)),
-      borderColor: BSH_RED,
-      borderWidth: 2,
+      borderColor: lineColor,
+      borderWidth: 2.5,
       pointRadius: 0, pointHoverRadius: 4,
-      fill: false, tension: 0.25, spanGaps: false,
+      fill: false, tension: 0.4, spanGaps: true,
       order: 1,
     });
     datasets.push({
