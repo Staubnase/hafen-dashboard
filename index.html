@@ -4522,11 +4522,35 @@ function renderGezeiten() {
           typ: d.event === 'HW' ? 'H' : 'N',
         }));
     } else if (isBSH) {
-      // OGC-API: nur hwnw_forecast (keine Kurvenvorhersage) — Peaks als Linie
-      peaksSrc = (bshApiData.hwnw_forecast?.data || [])
-        .filter(d => inWindow(new Date(d.timestamp).getTime()))
-        .map(d => ({ ts: new Date(d.timestamp), cm: d.value, typ: d.event === 'HW' ? 'H' : 'N' }));
-      sampled = peaksSrc.map(p => ({ ts: p.ts, cm: p.cm }));
+      // OGC-API: nur hwnw_forecast — sinusförmige Interpolation zwischen HW/NW
+      const allPeaks = (bshApiData.hwnw_forecast?.data || [])
+        .map(d => ({ ts: new Date(d.timestamp), cm: d.value, typ: d.event === 'HW' ? 'H' : 'N' }))
+        .sort((a, b) => a.ts - b.ts);
+      peaksSrc = allPeaks.filter(d => inWindow(d.ts.getTime()));
+      // Interpolate with 10-minute resolution over the window
+      const interpPoints = [];
+      for (let t = windowStart; t <= windowEnd; t += 10 * 60000) {
+        // Find surrounding peaks
+        let prev = null, next = null;
+        for (let i = 0; i < allPeaks.length; i++) {
+          if (allPeaks[i].ts.getTime() <= t) prev = allPeaks[i];
+          else { next = allPeaks[i]; break; }
+        }
+        let cm;
+        if (prev && next) {
+          const frac = (t - prev.ts.getTime()) / (next.ts.getTime() - prev.ts.getTime());
+          // Cosine interpolation gives a natural tidal curve shape
+          cm = prev.cm + (next.cm - prev.cm) * (1 - Math.cos(Math.PI * frac)) / 2;
+        } else if (prev) {
+          cm = prev.cm;
+        } else if (next) {
+          cm = next.cm;
+        } else {
+          continue;
+        }
+        interpPoints.push({ ts: new Date(t), cm });
+      }
+      sampled = interpPoints;
     } else {
       // PEGELONLINE-Fallback
       const measAll = bshApiData.measurements;
