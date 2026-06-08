@@ -4163,6 +4163,15 @@ async function loadBSH() {
             forecast:  e.forecast_deviation ?? null,
           })),
         },
+        // Kurvenvorhersage (falls vorhanden — nicht alle Stationen haben MOS-Kurve)
+        curve_forecast: p.curve?.length ? {
+          data: p.curve.map(e => ({
+            timestamp:     e.timestamp,
+            measurement:   e.measurement ?? null,
+            curveforecast: e.automated_curve_forecast ?? null,
+            astro:         e.tidal_prediction ?? null,
+          })),
+        } : null,
       } : p;
 
       bshApiData = { ...data, source: 'bsh' };
