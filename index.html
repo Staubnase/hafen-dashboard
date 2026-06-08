@@ -5003,6 +5003,28 @@ function switchView(view) {
 //   - PEGELONLINE-Messwerte (letzte 7 Tage)
 //   - BSH-Vorhersage (Kurvenvorhersage + astro) wenn verfügbar
 // Fällt zurück auf PEGELONLINE allein, sonst statische BSH-Tabelle.
+function _buildSinusInterp(allPeaks, result) {
+  if (!allPeaks.length) return;
+  const sorted = [...allPeaks].sort((a, b) => a.ts - b.ts);
+  const tMin = sorted[0].ts.getTime();
+  const tMax = sorted[sorted.length - 1].ts.getTime() + 6 * 3600000;
+  for (let t = tMin; t <= tMax; t += 10 * 60000) {
+    let prev = null, next = null;
+    for (const p of sorted) {
+      if (p.ts.getTime() <= t) prev = p;
+      else { next = p; break; }
+    }
+    let cm;
+    if (prev && next) {
+      const frac = (t - prev.ts.getTime()) / (next.ts.getTime() - prev.ts.getTime());
+      cm = prev.cm + (next.cm - prev.cm) * (1 - Math.cos(Math.PI * frac)) / 2;
+    } else if (prev) { cm = prev.cm; }
+    else if (next)   { cm = next.cm; }
+    else continue;
+    result.forecast.push({ ts: new Date(t), cm });
+  }
+}
+
 function collectTideBigSeries() {
   const src = bshApiData;
   const result = {
@@ -5016,19 +5038,49 @@ function collectTideBigSeries() {
   };
   if (!src) return result;
 
-  if (src.source === 'bsh' && src.curve_forecast?.data) {
-    src.curve_forecast.data.forEach(d => {
-      const ts = new Date(d.timestamp);
-      if (d.astro != null)         result.astro.push({ts, cm: d.astro});
-      if (d.curveforecast != null) result.forecast.push({ts, cm: d.curveforecast});
-      if (d.measurement != null)   result.measure.push({ts, cm: d.measurement});
-    });
-    (src.hwnw_forecast?.data || []).forEach(d => {
-      result.peaks.push({ts: new Date(d.timestamp), cm: d.value, typ: d.event === 'HW' ? 'H' : 'N'});
-    });
-    if (src.MHW) result.mhwCm = src.MHW;
-    if (src.MNW) result.mnwCm = src.MNW;
-    if (src['PNP (unter NHN)']) result.PNP = src['PNP (unter NHN)'] / 100;
+  const toN = v => (v == null || v === '') ? null : +v;  // String→Number, null bleibt null
+
+  if (src.source === 'bsh') {
+    // Peaks aus hwnw_forecast
+    const allPeaks = (src.hwnw_forecast?.data || []).map(d => ({
+      ts: new Date(d.timestamp), cm: toN(d.value), typ: d.event === 'HW' ? 'H' : 'N'
+    }));
+    result.peaks = allPeaks;
+
+    // Kurvendaten aus curve_forecast (Werte können Strings sein!)
+    if (src.curve_forecast?.data) {
+      // Einheitenerkennung: cm PNP (~300-800) oder m NHN (~-2..3)?
+      const sample = src.curve_forecast.data.find(d => d.astro != null || d.measurement != null);
+      const rawVal = toN(sample?.astro ?? sample?.measurement);
+      const isMeters = rawVal != null && Math.abs(rawVal) < 50;
+      const normalize = v => { const n = toN(v); return n == null ? null : isMeters ? n * 100 / 1 : n; };
+      // normalize gibt cm PNP (oder schon cm NHN wenn isMeters → dann extra-flag nötig)
+      // Merke ob Werte bereits NHN sind
+      result._curveAlreadyNHN = isMeters;
+
+      let hasAny = false;
+      src.curve_forecast.data.forEach(d => {
+        const ts = new Date(d.timestamp);
+        const a = normalize(d.astro);
+        const f = normalize(d.curveforecast);
+        const m = normalize(d.measurement);
+        if (a != null) { result.astro.push({ts, cm: a}); hasAny = true; }
+        if (f != null) { result.forecast.push({ts, cm: f}); hasAny = true; }
+        if (m != null) { result.measure.push({ts, cm: m}); hasAny = true; }
+      });
+
+      if (!hasAny) {
+        // curve_forecast vorhanden aber alle null → Sinus-Interpolation
+        _buildSinusInterp(allPeaks, result);
+      }
+    } else {
+      // Kein curve_forecast → Sinus-Interpolation zwischen HW/NW
+      _buildSinusInterp(allPeaks, result);
+    }
+
+    if (src.MHW) result.mhwCm = toN(src.MHW) ?? result.mhwCm;
+    if (src.MNW) result.mnwCm = toN(src.MNW) ?? result.mnwCm;
+    if (src['PNP (unter NHN)']) result.PNP = toN(src['PNP (unter NHN)']) / 100;
   } else if (src.peaks && src.measurements) {
     // PEGELONLINE-Fallback: nur Messwerte + detektierte Peaks
     src.measurements.forEach(m => result.measure.push({ts: m.ts, cm: m.cm}));
@@ -5091,10 +5143,14 @@ function renderTideBig() {
     });
     return out;
   };
-  const toCmNHN = v => v == null ? null : Math.round(v + s.PNP * 100);
-  const measureCm  = pinTo(measure).map(toCmNHN);
-  const forecastCm = pinTo(forecast).map(toCmNHN);
-  const astroCm    = pinTo(astro).map(toCmNHN);
+  // Wenn Kurvendaten bereits in cm NHN (_curveAlreadyNHN), kein PNP-Offset addieren
+  const toCmNHN     = v => v == null ? null : Math.round(v + s.PNP * 100);
+  const toCmNHNcurv = s._curveAlreadyNHN
+    ? v => v == null ? null : Math.round(v)
+    : toCmNHN;
+  const measureCm  = pinTo(measure).map(toCmNHNcurv);
+  const forecastCm = pinTo(forecast).map(toCmNHNcurv);
+  const astroCm    = pinTo(astro).map(toCmNHNcurv);
 
   // Scheitel auf Labels pinnen
   const peakData = new Array(base.length).fill(null);
