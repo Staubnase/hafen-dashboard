@@ -4199,6 +4199,12 @@ async function loadBSH() {
       } : p;
 
       bshApiData = { ...data, source: 'bsh' };
+      if (hasOGC && p.curve?.length) {
+        console.info('[BSH DEBUG] curve[0] Rohfelder:', JSON.stringify(p.curve[0]));
+        console.info('[BSH DEBUG] curve_forecast.data[0]:', JSON.stringify(data.curve_forecast?.data?.[0]));
+      } else if (hasOGC) {
+        console.info('[BSH DEBUG] p.curve ist leer oder fehlt. p keys:', Object.keys(p).join(', '));
+      }
       console.info('BSH Live-Daten geladen via:', new URL(url).hostname, hasOGC ? '(OGC)' : '(legacy)');
       return true;
     } catch (e) {
