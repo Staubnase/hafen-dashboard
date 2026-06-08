@@ -1979,9 +1979,11 @@ function renderPegelFallback() {
 // Mobilithek HTTPS Client-Pull Endpunkt für HPA Brückensperrungen
 // Die URL wird über die gleiche CORS-Proxy-Kette wie BSH abgerufen.
 // Falls der Abruf fehlschlägt → Fallback auf eingebettete XML.
-const BRUECKEN_DATA_URL = window._CF_WORKER_URL
-  ? `${window._CF_WORKER_URL}?target=mobilithek`
-  : 'proxy.php?target=mobilithek';
+// Eigener nginx-Proxy (Coolify) — kann Port 8443 erreichen, Cloudflare Worker nicht
+const MOBILITHEK_NGINX_PROXY = 'http://dtbqa08d0xsfnx5db5jfs7kg.37.120.190.92.sslip.io/mobilithek';
+
+const BRUECKEN_DATA_URL = MOBILITHEK_NGINX_PROXY
+  || (window._CF_WORKER_URL ? `${window._CF_WORKER_URL}?target=mobilithek` : 'proxy.php?target=mobilithek');
 
 // Bekannte Brücken im Harburger Hafengebiet: sourceIdentification → Anzeigename
 const BRUECKEN_NAMES = {
