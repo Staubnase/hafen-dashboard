@@ -4112,7 +4112,7 @@ const BSH_TARGET_URL = 'https://wasserstand-nordsee.bsh.de/data/DE__508P.json'; 
 // Proxy-Kette: zuerst lokaler nginx-Proxy (kein CORS-Problem), dann öffentliche Fallbacks.
 // Lokaler Proxy erfordert die nginx-Location-Blöcke aus dem Repo (nginx-proxy.conf).
 // ↓ Cloudflare Worker URL hier eintragen (z.B. https://hafen-proxy.DEIN-NAME.workers.dev)
-window._CF_WORKER_URL = '';
+window._CF_WORKER_URL = 'https://hafen-dashboard.nico29-vogel.workers.dev';
 
 const BSH_PROXIES = [
   ...(window._CF_WORKER_URL ? [_ => `${window._CF_WORKER_URL}?target=bsh`] : []),
