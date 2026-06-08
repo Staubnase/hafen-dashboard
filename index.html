@@ -1915,7 +1915,9 @@ function renderPegelFallback() {
 // Mobilithek HTTPS Client-Pull Endpunkt für HPA Brückensperrungen
 // Die URL wird über die gleiche CORS-Proxy-Kette wie BSH abgerufen.
 // Falls der Abruf fehlschlägt → Fallback auf eingebettete XML.
-const BRUECKEN_DATA_URL = 'https://mobilithek.info:8443/mobilithek/api/v1.0/subscription/981881661821800448/clientPullService?subscriptionID=981881661821800448';
+// Lokaler Proxy: /proxy/mobilithek/ → mobilithek.info:8443 (via nginx-proxy.conf)
+// Fallback auf direkten URL falls kein lokaler Proxy vorhanden.
+const BRUECKEN_DATA_URL = 'proxy.php?target=mobilithek';
 
 // Bekannte Brücken im Harburger Hafengebiet: sourceIdentification → Anzeigename
 const BRUECKEN_NAMES = {
@@ -2032,24 +2034,24 @@ async function loadBruecken() {
   badge.textContent = 'Laden…'; badge.className = 'badge badge-idle';
   let xmlStr = null;
 
-  // Live-Abruf via Proxy-Kette (Mobilithek hat kein CORS)
-  if (BRUECKEN_DATA_URL) {
-    for (const proxy of BSH_PROXIES) {
-      try {
-        const url = proxy(BRUECKEN_DATA_URL);
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        // Prüfe ob es gültiges DATEX-II XML ist
-        if (text.includes('d2LogicalModel') || text.includes('situationRecord')) {
-          xmlStr = text;
-          console.info('Brücken-Livedaten geladen via:', new URL(url).hostname);
-          break;
-        }
-        throw new Error('Unerwartetes Format');
-      } catch(e) {
-        console.warn('Brücken-Proxy fehlgeschlagen:', e.message);
+  // Live-Abruf: zuerst lokales proxy.php, dann öffentliche CORS-Proxies
+  const brueckenUrls = [
+    BRUECKEN_DATA_URL,  // proxy.php?target=mobilithek (direkt, kein Wrapper)
+    ...BSH_PROXIES.slice(1).map(fn => fn('https://mobilithek.info:8443/mobilithek/api/v1.0/subscription/981881661821800448/clientPullService?subscriptionID=981881661821800448')),
+  ];
+  for (const url of brueckenUrls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      if (text.includes('d2LogicalModel') || text.includes('situationRecord')) {
+        xmlStr = text;
+        console.info('Brücken-Livedaten geladen via:', url.split('?')[0]);
+        break;
       }
+      throw new Error('Unerwartetes Format');
+    } catch(e) {
+      console.warn('Brücken-Proxy fehlgeschlagen:', e.message);
     }
   }
   // Fallback auf eingebettete XML
@@ -4107,9 +4109,10 @@ function parseBSH() {
 
 // --- BSH Konfiguration ---
 const BSH_TARGET_URL = 'https://wasserstand-nordsee.bsh.de/data/DE__508P.json';  // St. Pauli
-// Public CORS-Proxies in Reihenfolge probieren; auf GitHub Pages (https-Origin)
-// akzeptieren die im Gegensatz zu file://-Origin Requests.
+// Proxy-Kette: zuerst lokaler nginx-Proxy (kein CORS-Problem), dann öffentliche Fallbacks.
+// Lokaler Proxy erfordert die nginx-Location-Blöcke aus dem Repo (nginx-proxy.conf).
 const BSH_PROXIES = [
+  _ => `proxy.php?target=bsh`,
   u => `https://corsproxy.org/?${encodeURIComponent(u)}`,
   u => `https://cors.eu.org/${u}`,
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
