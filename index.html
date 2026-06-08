@@ -164,6 +164,15 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 .tide-chart-big-wrap > canvas {
   width: 100% !important; height: 100% !important; display: block;
 }
+/* Flexibler Gezeiten-Chart der den Restplatz in der Karte ausfüllt */
+.gezeiten-chart-flex {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.gezeiten-chart-flex > canvas {
+  width: 100% !important; height: 100% !important; display: block;
+}
 .tide-scrub {
   margin-top: 10px;
   background: var(--surface2);
@@ -478,12 +487,14 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
    MAIN GRID
 ═══════════════════════════════════════ */
 main {
-  padding: 20px 32px;
+  padding: 16px 28px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: auto auto auto;
-  gap: 16px;
+  gap: 14px;
   width: 100%;
+  height: calc(100vh - 52px);
+  overflow: hidden;
 }
 
 /* ═══════════════════════════════════════
@@ -497,6 +508,10 @@ main {
   box-shadow: var(--shadow);
   transition: border-color 0.15s, box-shadow 0.15s;
   animation: fadeUp 0.35s var(--ease) both;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .card:hover { box-shadow: var(--shadow-md); }
 
@@ -544,12 +559,9 @@ main {
    Col 3 (wide):   Karte (row 1-2) | HPA (row 3)
 ═══════════════════════════════════════ */
 main {
-  /* 12-Spalten-Grid:
-     Row 1: Pegel (3/12 = 25%) | Gezeiten (9/12 = 75%) — nutzt volle Breite
-     Row 2: Wetter (5/12) | Verkehr+Brücken (7/12)
-  */
+  /* 12-Spalten-Grid, Viewport-hohe Rows — kein Scrollen nötig */
   grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: auto auto auto;
+  grid-template-rows: 57fr 26fr 17fr;
 }
 #pegel-card     { grid-column: 1 / span 3;   grid-row: 1;     min-width: 0; }
 #gezeiten-card  { grid-column: 4 / span 9;   grid-row: 1;     min-width: 0; overflow: hidden; }
@@ -742,6 +754,8 @@ main {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 6px;
+  flex: 1; min-height: 0;
+  overflow-y: auto;
 }
 .bruecke {
   display: flex; align-items: center; gap: 10px;
@@ -803,15 +817,16 @@ main {
   display: flex; align-items: center; justify-content: center; gap: 6px;
 }
 .radar-toggle:hover { border-color: var(--border2); color: var(--text); }
-.radar-frame { display: block; margin-top: 8px; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); }
-.radar-frame.open { display: block; }
-.radar-frame iframe { width: 100%; height: 640px; border: none; display: block; }
+.radar-frame { display: none; margin-top: 8px; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); flex: 1; min-height: 0; }
+.radar-frame.open { display: flex; flex-direction: column; }
+.radar-frame iframe { width: 100%; flex: 1; min-height: 0; border: none; display: block; }
 
 /* ═══════════════════════════════════════
    VERKEHR / MAP CARD
 ═══════════════════════════════════════ */
 .map-wrap {
-  height: 340px; border-radius: var(--r-sm);
+  flex: 1; min-height: 0;
+  border-radius: var(--r-sm);
   overflow: hidden; border: 1px solid var(--border);
   position: relative;
 }
@@ -1092,12 +1107,8 @@ footer {
   max-height: 260px;
 }
 
-/* Pegel card soll die Höhe der Gezeiten-Card matchen (align-self stretch via grid),
-   Tabelle scrollt innerhalb — keine min-height die die Card aufblähen würde */
+/* Pegel card: Tabelle scrollt innerhalb */
 #pegel-card {
-  display: flex; flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
 }
 #pegel-card .pegel-table-wrap {
   flex: 1 1 0;
@@ -1270,20 +1281,17 @@ footer {
 .gezeiten-top-row {
   display: flex;
   gap: 16px;
-  margin-top: 14px;
-  margin-bottom: 14px;
-  align-items: stretch;
+  margin-top: 10px;
+  margin-bottom: 0;
+  align-items: flex-start;
+  flex-shrink: 0;   /* wächst nicht — Chart bekommt den Rest */
 }
 .gezeiten-top-table {
   width: 320px; flex-shrink: 0;
   display: flex; flex-direction: column;
-  align-self: stretch;
 }
 .gezeiten-top-table .pegel-table-wrap {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
-  height: 100%;
+  max-height: 180px;
 }
 .gezeiten-top-row .gezeiten-events {
   flex: 1 1 0;
@@ -1357,12 +1365,21 @@ footer {
   .gezeiten-top-table { width: 440px; }
 }
 @media (max-width: 1100px) {
-  main { grid-template-columns: 1fr 1fr !important; }
+  main {
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
   #gezeiten-card { grid-column: 1 / -1; grid-row: auto; }
   #pegel-card    { grid-column: 1 / -1; grid-row: auto; }
   #wetter-card   { grid-column: 1;      grid-row: auto; }
   #verkehr-card  { grid-column: 2;      grid-row: auto; }
   #bruecken-card { grid-column: 1 / -1; grid-row: auto; }
+  .gezeiten-chart-flex { height: 380px; flex: none; }
+  .map-wrap { height: 280px; flex: none; }
+  .radar-frame { height: 380px; flex: none; }
+  .radar-frame iframe { height: 100%; }
 }
 @media (max-width: 700px) {
   main { grid-template-columns: 1fr !important; }
@@ -1421,8 +1438,8 @@ footer {
       </div>
     </div>
 
-    <!-- Chart oben, volle Breite -->
-    <div class="chart-wrap" style="height:480px;width:100%;padding-top:26px;margin-top:8px">
+    <!-- Chart oben, volle Breite — flex:1 damit er den Platz ausfüllt -->
+    <div class="chart-wrap gezeiten-chart-flex" style="width:100%;padding-top:26px;margin-top:8px">
       <canvas id="gezeiten-chart"></canvas>
     </div>
 
@@ -4508,7 +4525,10 @@ function renderGezeiten() {
 
     const inWindow = ts => ts >= windowStart && ts <= windowEnd;
 
-    if (isBSH && bshApiData.curve_forecast?.data) {
+    const hasCurveData = bshApiData.curve_forecast?.data?.some(
+      d => d.curveforecast != null || d.measurement != null || d.astro != null
+    );
+    if (isBSH && hasCurveData) {
       // BSH-curve_forecast hat je Eintrag: {timestamp, astro, curveforecast, measurement} (cm PNP)
       const curveAll = bshApiData.curve_forecast.data;
       const curve = curveAll.filter(d => inWindow(new Date(d.timestamp).getTime()));
