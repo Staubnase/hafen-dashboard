@@ -1915,9 +1915,9 @@ function renderPegelFallback() {
 // Mobilithek HTTPS Client-Pull Endpunkt für HPA Brückensperrungen
 // Die URL wird über die gleiche CORS-Proxy-Kette wie BSH abgerufen.
 // Falls der Abruf fehlschlägt → Fallback auf eingebettete XML.
-// Lokaler Proxy: /proxy/mobilithek/ → mobilithek.info:8443 (via nginx-proxy.conf)
-// Fallback auf direkten URL falls kein lokaler Proxy vorhanden.
-const BRUECKEN_DATA_URL = CF_WORKER_URL ? `${CF_WORKER_URL}?target=mobilithek` : 'proxy.php?target=mobilithek';
+const BRUECKEN_DATA_URL = window._CF_WORKER_URL
+  ? `${window._CF_WORKER_URL}?target=mobilithek`
+  : 'proxy.php?target=mobilithek';
 
 // Bekannte Brücken im Harburger Hafengebiet: sourceIdentification → Anzeigename
 const BRUECKEN_NAMES = {
@@ -4111,11 +4111,11 @@ function parseBSH() {
 const BSH_TARGET_URL = 'https://wasserstand-nordsee.bsh.de/data/DE__508P.json';  // St. Pauli
 // Proxy-Kette: zuerst lokaler nginx-Proxy (kein CORS-Problem), dann öffentliche Fallbacks.
 // Lokaler Proxy erfordert die nginx-Location-Blöcke aus dem Repo (nginx-proxy.conf).
-// ↓ Cloudflare Worker URL hier eintragen (z.B. https://hafen.DEIN-NAME.workers.dev)
-const CF_WORKER_URL = '';
+// ↓ Cloudflare Worker URL hier eintragen (z.B. https://hafen-proxy.DEIN-NAME.workers.dev)
+window._CF_WORKER_URL = '';
 
 const BSH_PROXIES = [
-  ...(CF_WORKER_URL ? [_ => `${CF_WORKER_URL}?target=bsh`] : []),
+  ...(window._CF_WORKER_URL ? [_ => `${window._CF_WORKER_URL}?target=bsh`] : []),
   _ => `proxy.php?target=bsh`,
   u => `https://corsproxy.org/?${encodeURIComponent(u)}`,
   u => `https://cors.eu.org/${u}`,
