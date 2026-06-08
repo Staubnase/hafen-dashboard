@@ -4492,7 +4492,7 @@ function renderGezeiten() {
 
     const inWindow = ts => ts >= windowStart && ts <= windowEnd;
 
-    if (isBSH) {
+    if (isBSH && bshApiData.curve_forecast?.data) {
       // BSH-curve_forecast hat je Eintrag: {timestamp, astro, curveforecast, measurement} (cm PNP)
       const curveAll = bshApiData.curve_forecast.data;
       const curve = curveAll.filter(d => inWindow(new Date(d.timestamp).getTime()));
@@ -4512,6 +4512,12 @@ function renderGezeiten() {
           cm: d.value,
           typ: d.event === 'HW' ? 'H' : 'N',
         }));
+    } else if (isBSH) {
+      // OGC-API: nur hwnw_forecast (keine Kurvenvorhersage) — Peaks als Linie
+      peaksSrc = (bshApiData.hwnw_forecast?.data || [])
+        .filter(d => inWindow(new Date(d.timestamp).getTime()))
+        .map(d => ({ ts: new Date(d.timestamp), cm: d.value, typ: d.event === 'HW' ? 'H' : 'N' }));
+      sampled = peaksSrc.map(p => ({ ts: p.ts, cm: p.cm }));
     } else {
       // PEGELONLINE-Fallback
       const measAll = bshApiData.measurements;
