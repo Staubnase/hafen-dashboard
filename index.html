@@ -4117,6 +4117,7 @@ window._CF_WORKER_URL = 'https://hafen-dashboard.nico29-vogel.workers.dev';
 const BSH_PROXIES = [
   ...(window._CF_WORKER_URL ? [_ => `${window._CF_WORKER_URL}?target=bsh`] : []),
   _ => `proxy.php?target=bsh`,
+  u => `https://corsproxy.io/?apikey=bf339ca7&url=${encodeURIComponent(u)}`,
   u => `https://corsproxy.org/?${encodeURIComponent(u)}`,
   u => `https://cors.eu.org/${u}`,
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
@@ -4154,7 +4155,7 @@ async function loadBSH() {
 
   // --- Versuch 2: PEGELONLINE (Harburg) ---
   try {
-    const url = `https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/${STPAULI_UUID}/W/measurements.json?start=P7D`;
+    const url = `https://pegelonline.wsv.de/webservices/rest-api/v2/stations/${STPAULI_UUID}/W/measurements.json?start=P7D`;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw = await res.json();
@@ -4181,9 +4182,28 @@ async function loadBSH() {
     return true;
   } catch (e) {
     console.warn('Alle Live-Quellen fehlgeschlagen, verwende statische 2026-Daten:', e.message);
-    bshApiData = null;
-    return false;
   }
+
+  // Letzter Ausweg: eingebettete statische Gezeitentabelle (BSH_RAW)
+  try {
+    const staticData = parseBSH();
+    if (staticData && staticData.length) {
+      bshApiData = {
+        source: 'static',
+        station_name: 'Hamburg-Harburg (statisch 2026)',
+        hwnw_forecast: staticData,
+        MHW: STPAULI_MHW_CM,
+        MNW: STPAULI_MNW_CM,
+        'PNP (unter NHN)': Math.round(STPAULI_PNP_NHN_M * 100),
+      };
+      console.info('Statische BSH-Gezeitendaten geladen:', staticData.length, 'Einträge');
+      return true;
+    }
+  } catch(e) {
+    console.error('Auch statische Daten fehlgeschlagen:', e.message);
+  }
+  bshApiData = null;
+  return false;
 }
 
 // Einfacher Rolling-Mean-Smoother
@@ -4815,7 +4835,10 @@ function refreshAll() {
   loadBruecken();
   loadWetter();
   if (tomtomKey) loadIncidents();
-  loadBSH().then(() => renderGezeiten());
+  loadBSH().then(() => {
+    try { renderGezeiten(); }
+    catch(e) { console.error('renderGezeiten Fehler:', e); }
+  });
 
   nextAt = Date.now() + REFRESH_MS;
   updateCountdown();
