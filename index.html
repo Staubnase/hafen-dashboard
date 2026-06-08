@@ -4142,15 +4142,32 @@ async function loadBSH() {
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // Neues OGC API Format: Daten unter json.properties
-      // Altes Format: Daten direkt auf json
-      const data = json?.properties ?? json;
-      if (data && (data.curve_forecast || data.hwnw_forecast)) {
-        bshApiData = { ...data, source: 'bsh' };
-        console.info('BSH Live-Daten geladen via:', new URL(url).hostname);
-        return true;
-      }
-      throw new Error('Unerwartetes BSH-JSON-Format');
+      // OGC API Format (neu): json.properties mit high_water_low_water
+      // Legacy Format (alt): json.hwnw_forecast direkt
+      const p = json?.properties ?? json;
+      const hasOGC = p?.high_water_low_water?.length > 0;
+      const hasLegacy = p?.hwnw_forecast?.data?.length > 0 || p?.curve_forecast;
+      if (!hasOGC && !hasLegacy) throw new Error('Unerwartetes BSH-JSON-Format');
+
+      // OGC → Legacy-Umwandlung (kompatibel mit renderGezeiten)
+      const data = hasOGC ? {
+        station_name: p.gauge_label ?? p.station_name,
+        MHW: p.mean_high_water,
+        MNW: p.mean_low_water,
+        'PNP (unter NHN)': null,
+        hwnw_forecast: {
+          data: p.high_water_low_water.map(e => ({
+            timestamp: e.event_timestamp,
+            event:     e.event,
+            value:     e.forecast_value ?? e.tidal_prediction_value,
+            forecast:  e.forecast_deviation ?? null,
+          })),
+        },
+      } : p;
+
+      bshApiData = { ...data, source: 'bsh' };
+      console.info('BSH Live-Daten geladen via:', new URL(url).hostname, hasOGC ? '(OGC)' : '(legacy)');
+      return true;
     } catch (e) {
       console.warn('BSH-Proxy fehlgeschlagen:', e.message);
     }
