@@ -5124,8 +5124,15 @@ function renderTideBig() {
   const measure  = downsample(s.measure);
   const peaksIn  = s.peaks.filter(inView);
 
-  // Labels aus der längsten Serie (priorisiere measure)
-  const base = measure.length ? measure : (forecast.length ? forecast : astro);
+  // X-Achse (base): Alle im Fenster verfügbaren Zeitpunkte zusammenführen.
+  // measure deckt nur die Vergangenheit ab, forecast/astro die Zukunft.
+  // Wir bauen eine gemeinsame Zeitachse aus allen Serien (10-min-Raster).
+  const allInView = [...measure, ...forecast, ...astro].filter(inView);
+  if (!allInView.length) return;
+  // Deduplizieren & sortieren nach Timestamp
+  const tsSet = new Map();
+  allInView.forEach(p => tsSet.set(Math.round(p.ts.getTime() / (10*60000)), p.ts));
+  const base = [...tsSet.values()].sort((a, b) => a - b).map(ts => ({ ts }));
   if (!base.length) return;
 
   const fmtLabel = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
