@@ -565,9 +565,9 @@ main {
 }
 #pegel-card     { grid-column: 1 / span 3;   grid-row: 1;     min-width: 0; }
 #gezeiten-card  { grid-column: 4 / span 9;   grid-row: 1;     min-width: 0; overflow: hidden; }
-#wetter-card    { grid-column: 1 / span 5;   grid-row: 2 / 4; min-width: 0; }
-#verkehr-card   { grid-column: 6 / span 7;   grid-row: 2;     min-width: 0; }
-#bruecken-card  { grid-column: 6 / span 7;   grid-row: 3;     min-width: 0; }
+#wetter-card    { grid-column: 1 / span 4;   grid-row: 2 / 4; min-width: 0; }
+#verkehr-card   { grid-column: 5 / span 5;   grid-row: 2 / 4; min-width: 0; }
+#bruecken-card  { grid-column: 10 / span 3;  grid-row: 2 / 4; min-width: 0; }
 #bsh-table-card { grid-column: 1 / -1;       grid-row: 4;     display: none; }
 
 /* ═══════════════════════════════════════
@@ -1373,9 +1373,9 @@ footer {
   }
   #gezeiten-card { grid-column: 1 / -1; grid-row: auto; }
   #pegel-card    { grid-column: 1 / -1; grid-row: auto; }
-  #wetter-card   { grid-column: 1;      grid-row: auto; }
-  #verkehr-card  { grid-column: 2;      grid-row: auto; }
-  #bruecken-card { grid-column: 1 / -1; grid-row: auto; }
+  #wetter-card   { grid-column: 1 / -1; grid-row: auto; }
+  #verkehr-card  { grid-column: 1;      grid-row: auto; }
+  #bruecken-card { grid-column: 2;      grid-row: auto; }
   .gezeiten-chart-flex { height: 380px; flex: none; }
   .map-wrap { height: 280px; flex: none; }
   .radar-frame { height: 380px; flex: none; }
@@ -4529,17 +4529,27 @@ function renderGezeiten() {
       d => d.curveforecast != null || d.measurement != null || d.astro != null
     );
     if (isBSH && hasCurveData) {
-      // BSH-curve_forecast hat je Eintrag: {timestamp, astro, curveforecast, measurement} (cm PNP)
+      // BSH-curve_forecast: Einheitenerkennung — BSH OGC gibt tidal_prediction ggf. in m NHN
+      // statt cm PNP. Werte < 50 → Meter NHN → ×100 und dann ohne PNP-Offset ins Chart.
       const curveAll = bshApiData.curve_forecast.data;
+      const sampleEntry = curveAll.find(d => d.curveforecast != null || d.astro != null);
+      const sampleRaw = sampleEntry?.curveforecast ?? sampleEntry?.astro;
+      // Peaks liegen bei ~300-800 cm PNP. Werte < 50 → wahrscheinlich Meter NHN.
+      const curvesAreMetersNHN = sampleRaw != null && Math.abs(sampleRaw) < 50;
+      // Konverter: entweder cm PNP → cm NHN, oder m NHN → cm NHN
+      const toCurveNHN = v => v == null ? null
+        : curvesAreMetersNHN ? Math.round(v * 100)            // m NHN → cm NHN
+        : Math.round(v + PNP * 100);                           // cm PNP → cm NHN
       const curve = curveAll.filter(d => inWindow(new Date(d.timestamp).getTime()));
       const step = Math.max(1, Math.floor(curve.length / 600));
       const selected = curve.filter((_, i) => i % step === 0);
+      const rawCm = d => d.measurement ?? d.curveforecast ?? d.astro;
       sampled = selected.map(d => ({
         ts: new Date(d.timestamp),
-        cm: d.measurement ?? d.curveforecast ?? d.astro,  // priorisiere Messung, dann Forecast, dann astro
+        cm: toCurveNHN(rawCm(d)),  // bereits in cm NHN, toCmNHN NICHT nochmal anwenden
       }));
-      sampledAstro = selected.map(d => d.astro ?? null);
-      sampledFc    = selected.map(d => d.curveforecast ?? null);
+      sampledAstro = selected.map(d => toCurveNHN(d.astro));
+      sampledFc    = selected.map(d => toCurveNHN(d.curveforecast));
       // Peaks aus hwnw_forecast — auch auf Fenster zuschneiden
       peaksSrc = (bshApiData.hwnw_forecast?.data || [])
         .filter(d => inWindow(new Date(d.timestamp).getTime()))
@@ -4762,11 +4772,14 @@ function renderGezeiten() {
         pointRadius: 0, fill: false, tension: 0, order: 10,
       },
     ];
-    // BSH-spezifisch: zusätzlich astro (Gezeitenvorausberechnung) + Kurvenvorhersage
+    // BSH-spezifisch: zusätzlich astro + Kurvenvorhersage
+    // Wenn hasCurveData: sampledAstro/sampledFc/sampled.cm sind bereits cm NHN (kein toCmNHN nötig)
+    // Wenn bshIsInterpolated: sampled.cm ist cm PNP → toCmNHN anwenden
+    const curveAsNHN = hasCurveData && !bshIsInterpolated;
     if (isBSH && sampledAstro) {
       datasets.push({
         label: 'Gezeitenvorausberechnung (astro)',
-        data: sampledAstro.map(toCmNHN),
+        data: curveAsNHN ? sampledAstro : sampledAstro.map(toCmNHN),
         borderColor: BSH_GREEN,
         borderWidth: 1.6,
         pointRadius: 0, pointHoverRadius: 4,
@@ -4777,22 +4790,22 @@ function renderGezeiten() {
     if (isBSH && sampledFc) {
       datasets.push({
         label: 'Kurvenvorhersage (BSH)',
-        data: sampledFc.map(toCmNHN),
+        data: curveAsNHN ? sampledFc : sampledFc.map(toCmNHN),
         borderColor: BSH_ORANGE,
         borderWidth: 1.8,
         pointRadius: 0, pointHoverRadius: 4,
-        fill: false, tension: 0.3, spanGaps: false,
+        fill: false, tension: 0.3, spanGaps: true,
         order: 2,
       });
     }
-    // Messwerte / Vorhersagekurve
+    // Hauptlinie
     const lineLabel = bshIsInterpolated
       ? 'Gezeitenvorhersage (BSH)'
-      : (isBSH ? 'Messwert (BSH Live)' : 'Messwert (PEGELONLINE)');
+      : (isBSH ? 'Wasserstand (BSH Live)' : 'Messwert (PEGELONLINE)');
     const lineColor = bshIsInterpolated ? BSH_ORANGE : BSH_RED;
     datasets.push({
       label: lineLabel,
-      data: sampled.map(m => toCmNHN(m.cm)),
+      data: curveAsNHN ? sampled.map(m => m.cm) : sampled.map(m => toCmNHN(m.cm)),
       borderColor: lineColor,
       borderWidth: 2.5,
       pointRadius: 0, pointHoverRadius: 4,
