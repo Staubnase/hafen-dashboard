@@ -580,7 +580,7 @@ main {
   align-items: start;
 }
 
-.gezeiten-events { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.gezeiten-events { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex-shrink: 0; }
 
 .tide-box {
   border: 1px solid var(--border);
@@ -1278,20 +1278,33 @@ footer {
 /* Gezeiten full layout */
 
 /* Obere Zeile: Tabelle links, Event-Cards rechts */
-.gezeiten-top-row {
+/* Gezeiten: links Chart+Boxen, rechts Tabelle volle Höhe */
+.gezeiten-body-split {
   display: flex;
   gap: 16px;
-  margin-top: 10px;
-  margin-bottom: 0;
-  align-items: flex-start;
-  flex-shrink: 0;   /* wächst nicht — Chart bekommt den Rest */
+  flex: 1;
+  min-height: 0;
+  margin-top: 8px;
 }
-.gezeiten-top-table {
-  width: 320px; flex-shrink: 0;
-  display: flex; flex-direction: column;
+.gezeiten-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.gezeiten-top-table .pegel-table-wrap {
-  max-height: 180px;
+.gezeiten-right {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.gezeiten-table-full {
+  flex: 1;
+  min-height: 0;
+  max-height: none !important;
 }
 .gezeiten-top-row .gezeiten-events {
   flex: 1 1 0;
@@ -1438,19 +1451,19 @@ footer {
       </div>
     </div>
 
-    <!-- Chart oben, volle Breite — flex:1 damit er den Platz ausfüllt -->
-    <div class="chart-wrap gezeiten-chart-flex" style="width:100%;padding-top:26px;margin-top:8px">
-      <canvas id="gezeiten-chart"></canvas>
-    </div>
-
-    <!-- Untere Zeile: Event-Cards links, Tabelle rechts -->
-    <div class="gezeiten-top-row">
-      <!-- Event-Cards links (3 nächste HW/NW) -->
-      <div class="gezeiten-events" id="gezeiten-events"></div>
-      <!-- Tabelle rechts -->
-      <div class="gezeiten-top-table">
+    <!-- Haupt-Layout: links Chart+Boxen, rechts Tabelle volle Höhe -->
+    <div class="gezeiten-body-split">
+      <!-- Links: Chart oben, 3 Event-Boxen unten -->
+      <div class="gezeiten-left">
+        <div class="chart-wrap gezeiten-chart-flex" style="padding-top:26px;margin-top:8px">
+          <canvas id="gezeiten-chart"></canvas>
+        </div>
+        <div class="gezeiten-events" id="gezeiten-events"></div>
+      </div>
+      <!-- Rechts: Tabelle volle Höhe -->
+      <div class="gezeiten-right">
         <div class="section-label">Abw. vom MHW/MNW</div>
-        <div class="pegel-table-wrap">
+        <div class="pegel-table-wrap gezeiten-table-full">
           <table class="data-table" id="bsh-table">
             <thead>
               <tr><th>Datum</th><th>Uhrzeit</th><th>Ereignis</th><th>Abw.</th></tr>
