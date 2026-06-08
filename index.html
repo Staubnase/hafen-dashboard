@@ -4199,6 +4199,12 @@ async function loadBSH() {
       } : p;
 
       bshApiData = { ...data, source: 'bsh' };
+      if (hasOGC && p.curve?.length) {
+        console.info('[BSH DEBUG] curve[0] Rohfelder:', JSON.stringify(p.curve[0]));
+        console.info('[BSH DEBUG] curve_forecast.data[0]:', JSON.stringify(data.curve_forecast?.data?.[0]));
+      } else if (hasOGC) {
+        console.info('[BSH DEBUG] p.curve ist leer oder fehlt. p keys:', Object.keys(p).join(', '));
+      }
       console.info('BSH Live-Daten geladen via:', new URL(url).hostname, hasOGC ? '(OGC)' : '(legacy)');
       return true;
     } catch (e) {
@@ -4529,38 +4535,38 @@ function renderGezeiten() {
       d => d.curveforecast != null || d.measurement != null || d.astro != null
     );
     if (isBSH && hasCurveData) {
-      // BSH-curve_forecast: Einheitenerkennung — BSH OGC gibt tidal_prediction ggf. in m NHN
-      // statt cm PNP. Werte < 50 → Meter NHN → ×100 und dann ohne PNP-Offset ins Chart.
       const curveAll = bshApiData.curve_forecast.data;
       const sampleEntry = curveAll.find(d => d.curveforecast != null || d.astro != null);
       const sampleRaw = sampleEntry?.curveforecast ?? sampleEntry?.astro;
-      // Peaks liegen bei ~300-800 cm PNP. Werte < 50 → wahrscheinlich Meter NHN.
       const curvesAreMetersNHN = sampleRaw != null && Math.abs(sampleRaw) < 50;
-      // Konverter: entweder cm PNP → cm NHN, oder m NHN → cm NHN
       const toCurveNHN = v => v == null ? null
-        : curvesAreMetersNHN ? Math.round(v * 100)            // m NHN → cm NHN
-        : Math.round(v + PNP * 100);                           // cm PNP → cm NHN
+        : curvesAreMetersNHN ? Math.round(v * 100)
+        : Math.round(v + PNP * 100);
       const curve = curveAll.filter(d => inWindow(new Date(d.timestamp).getTime()));
       const step = Math.max(1, Math.floor(curve.length / 600));
       const selected = curve.filter((_, i) => i % step === 0);
       const rawCm = d => d.measurement ?? d.curveforecast ?? d.astro;
-      sampled = selected.map(d => ({
+      const sampledRaw = selected.map(d => ({
         ts: new Date(d.timestamp),
-        cm: toCurveNHN(rawCm(d)),  // bereits in cm NHN, toCmNHN NICHT nochmal anwenden
+        cm: toCurveNHN(rawCm(d)),
       }));
-      sampledAstro = selected.map(d => toCurveNHN(d.astro));
-      sampledFc    = selected.map(d => toCurveNHN(d.curveforecast));
-      // Peaks aus hwnw_forecast — auch auf Fenster zuschneiden
-      peaksSrc = (bshApiData.hwnw_forecast?.data || [])
-        .filter(d => inWindow(new Date(d.timestamp).getTime()))
-        .map(d => ({
-          ts: new Date(d.timestamp),
-          cm: d.value,
-          typ: d.event === 'HW' ? 'H' : 'N',
-        }));
-    } else if (isBSH) {
+      // Fallback auf Interpolation wenn keine echten Werte vorhanden
+      const hasValidValues = sampledRaw.some(d => d.cm != null);
+      if (hasValidValues) {
+        sampled = sampledRaw;
+        sampledAstro = selected.map(d => toCurveNHN(d.astro));
+        sampledFc    = selected.map(d => toCurveNHN(d.curveforecast));
+        peaksSrc = (bshApiData.hwnw_forecast?.data || [])
+          .filter(d => inWindow(new Date(d.timestamp).getTime()))
+          .map(d => ({ ts: new Date(d.timestamp), cm: d.value, typ: d.event === 'HW' ? 'H' : 'N' }));
+      } else {
+        // Werte alle null → auf Sinus-Interpolation zurückfallen
+        bshIsInterpolated = true;
+      }
+    }
+    if (!sampled && isBSH) {
       bshIsInterpolated = true;
-      // OGC-API: nur hwnw_forecast — sinusförmige Interpolation zwischen HW/NW
+      // Sinus-Interpolation zwischen HW/NW-Scheitelwerten
       const allPeaks = (bshApiData.hwnw_forecast?.data || [])
         .map(d => ({ ts: new Date(d.timestamp), cm: d.value, typ: d.event === 'HW' ? 'H' : 'N' }))
         .sort((a, b) => a.ts - b.ts);
@@ -4589,7 +4595,8 @@ function renderGezeiten() {
         interpPoints.push({ ts: new Date(t), cm });
       }
       sampled = interpPoints;
-    } else {
+    }
+    if (!sampled) {
       // PEGELONLINE-Fallback
       const measAll = bshApiData.measurements;
       const meas = measAll.filter(m => inWindow(m.ts.getTime()));
