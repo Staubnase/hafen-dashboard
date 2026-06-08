@@ -140,6 +140,7 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   padding: 16px 20px;
+  padding-bottom: 68px; /* Platz für fixed Nav-Bar */
 }
 .tide-view-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -157,7 +158,9 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 
 /* Chart + horizontaler Slider */
 .tide-chart-big-wrap {
-  height: 560px; width: 100%;
+  height: calc(100vh - 52px - 56px - 60px); /* viewport - header - nav - card-head */
+  min-height: 300px;
+  width: 100%;
   padding-top: 34px;
   position: relative;
 }
@@ -173,76 +176,75 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 .gezeiten-chart-flex > canvas {
   width: 100% !important; height: 100% !important; display: block;
 }
-.tide-scrub {
-  margin-top: 10px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: 12px 16px;
+/* ═══════════════════════════════════════
+   FIXED NAVIGATIONSLEISTE (Gezeitenvorausberechnung)
+═══════════════════════════════════════ */
+.tide-nav-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 300;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+  padding: 10px 28px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 56px;
 }
-.tide-scrub-label {
-  display: flex; justify-content: space-between;
-  font-size: 10px; font-family: var(--mono); color: var(--text-muted);
-  margin-bottom: 8px;
-  text-transform: uppercase; letter-spacing: 0.08em;
-}
-.tide-scrub input[type="range"] {
-  width: 100%;
-  accent-color: var(--accent);
-}
+.tide-nav-left  { display: flex; align-items: center; gap: 10px; }
+.tide-nav-center { display: flex; align-items: center; gap: 6px; }
+.tide-nav-right { margin-left: auto; }
 
-/* Zeitbereich-Picker: Datum + Tage + Navigation */
-.tide-range-picker {
-  display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;
-}
-.tide-range-group {
-  display: flex; flex-direction: column; gap: 4px;
-  min-width: 0;
-}
-.tide-range-group > label {
-  font-size: 10px; font-family: var(--mono);
-  color: var(--text-dim); text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.tide-range-group:last-child {
-  margin-left: auto;    /* Info-Label nach rechts schieben */
-}
 .tide-date-input {
-  padding: 6px 10px;
+  padding: 5px 10px;
   font-family: var(--mono); font-size: 12px;
-  background: var(--surface); color: var(--text);
+  background: var(--surface2); color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  cursor: pointer;
+  cursor: pointer; height: 32px;
 }
 .tide-date-input:hover { border-color: var(--border2); }
-.tide-range-group > .range-selector,
-.tide-range-group > .nav-link:first-of-type { align-self: flex-start; }
-.tide-range-group .nav-link {
-  font-family: var(--mono); font-size: 12px;
+
+.tide-nav-btn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface2); color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  font-size: 12px; cursor: pointer;
+  transition: background .15s, color .15s;
 }
+.tide-nav-btn:hover { background: var(--bg); color: var(--text); border-color: var(--border2); }
+.tide-nav-today {
+  padding: 0 14px; height: 32px;
+  background: var(--accent-bg); color: var(--accent);
+  border: 1px solid rgba(0,102,255,0.2);
+  border-radius: var(--r-sm);
+  font-size: 12px; font-family: var(--mono); font-weight: 500;
+  cursor: pointer;
+  transition: background .15s;
+}
+.tide-nav-today:hover { background: var(--accent); color: #fff; }
+
 .tide-range-info {
   font-family: var(--mono); font-size: 11px;
   color: var(--text-muted);
-  padding: 6px 10px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-sm);
+  display: flex; gap: 5px; align-items: center;
 }
 .tide-range-info span { font-weight: 600; color: var(--text); }
+.tide-range-sep { font-weight: 400 !important; color: var(--text-dim) !important; }
 
 /* ═══════════════════════════════════════
    TIDE TABLE MODE (wie im FARGE-Plan)
    Zeit-Raster mit 15-Min-Zellen, Ereignisse als grüne Balken,
    Regelarbeitszeit 07-17 Uhr grau hinterlegt.
 ═══════════════════════════════════════ */
-.tide-table-info {
-  margin-bottom: 10px;
-  font-family: var(--mono); font-size: 11px;
-  color: var(--text-muted);
+.tide-table-info { display: none; } /* Legende jetzt im Header */
+.tide-legend-inline {
+  display: flex; gap: 16px; align-items: center;
+  font-family: var(--mono); font-size: 11px; color: var(--text-muted);
 }
-.tide-table-legend {
-  display: flex; gap: 20px; flex-wrap: wrap;
-}
+.tide-table-legend { display: flex; gap: 20px; flex-wrap: wrap; }
 .tide-legend-item {
   display: inline-flex; align-items: center; gap: 6px;
 }
@@ -266,8 +268,7 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   background: var(--surface);
-  max-height: calc(100vh - 360px);
-  min-height: 400px;
+  height: calc(100vh - 52px - 56px - 48px); /* viewport - header - nav - card-head */
 }
 .tide-grid {
   display: grid;
@@ -1627,6 +1628,10 @@ footer {
         <div class="tide-view-title">Gezeitenvorausberechnung — Pegel Harburg</div>
       </div>
       <div class="tide-view-actions">
+        <span class="tide-legend-inline" id="tide-table-legend-inline" style="display:none">
+          <span class="tide-legend-item"><span class="tide-legend-bar"></span> Ereignis ±2h</span>
+          <span class="tide-legend-item"><span class="tide-legend-workhours"></span> 07–17 Uhr</span>
+        </span>
         <div class="range-selector" id="tide-mode-selector">
           <button class="range-btn active" data-mode="chart" onclick="setTideMode('chart')">📈 Graph</button>
           <button class="range-btn" data-mode="table" onclick="setTideMode('table')">📋 Tabelle</button>
@@ -1639,6 +1644,13 @@ footer {
       </div>
     </div>
 
+    <!-- TABELLEN-MODUS -->
+    <div id="tide-table-mode" style="display:none">
+      <div class="tide-grid-scroll">
+        <div class="tide-grid" id="tide-grid"></div>
+      </div>
+    </div>
+
     <!-- GRAPH-MODUS -->
     <div id="tide-chart-mode">
       <div class="tide-chart-big-wrap">
@@ -1646,47 +1658,29 @@ footer {
       </div>
     </div>
 
-    <!-- TABELLEN-MODUS -->
-    <div id="tide-table-mode" style="display:none">
-      <div class="tide-table-info" id="tide-table-info">
-        <div class="tide-table-legend">
-          <span class="tide-legend-item"><span class="tide-legend-bar"></span> Ereignis incl. 2 Stunden Vor- und Nachlauf</span>
-          <span class="tide-legend-item"><span class="tide-legend-workhours"></span> Regelarbeitszeit 07:00–17:00</span>
+    <!-- Navigationsleiste — fixed am unteren Rand -->
+    <div class="tide-nav-bar">
+      <div class="tide-nav-left">
+        <input type="date" id="tide-range-start" class="tide-date-input" title="Startdatum" />
+        <div class="range-selector tide-days-selector">
+          <button class="range-btn" data-days="1" onclick="setTideDays(1)">1 T</button>
+          <button class="range-btn" data-days="3" onclick="setTideDays(3)">3 T</button>
+          <button class="range-btn active" data-days="7" onclick="setTideDays(7)">7 T</button>
+          <button class="range-btn" data-days="14" onclick="setTideDays(14)">14 T</button>
+          <button class="range-btn" data-days="30" onclick="setTideDays(30)">30 T</button>
         </div>
       </div>
-      <div class="tide-grid-scroll">
-        <div class="tide-grid" id="tide-grid"></div>
+      <div class="tide-nav-center">
+        <button class="tide-nav-btn" onclick="tideJumpDay(-1)" title="Zurück">◀</button>
+        <button class="tide-nav-today" onclick="tideJumpToday()">Heute</button>
+        <button class="tide-nav-btn" onclick="tideJumpDay(1)" title="Vor">▶</button>
       </div>
-    </div>
-
-    <!-- Scroll/Zoom-Leiste für den sichtbaren Zeitbereich (beide Modi) -->
-    <!-- Zeitbereich-Auswahl (beide Modi) -->
-    <div class="tide-scrub">
-      <div class="tide-range-picker">
-        <div class="tide-range-group">
-          <label>Startdatum</label>
-          <input type="date" id="tide-range-start" class="tide-date-input" />
-        </div>
-        <div class="tide-range-group">
-          <label>Anzahl Tage</label>
-          <div class="range-selector">
-            <button class="range-btn" data-days="1" onclick="setTideDays(1)">1</button>
-            <button class="range-btn" data-days="3" onclick="setTideDays(3)">3</button>
-            <button class="range-btn active" data-days="7" onclick="setTideDays(7)">7</button>
-            <button class="range-btn" data-days="14" onclick="setTideDays(14)">14</button>
-            <button class="range-btn" data-days="30" onclick="setTideDays(30)">30</button>
-          </div>
-        </div>
-        <div class="tide-range-group">
-          <button class="nav-link" onclick="tideJumpDay(-1)" title="Ein Tag zurück">◀</button>
-          <button class="nav-link" onclick="tideJumpToday()">Heute</button>
-          <button class="nav-link" onclick="tideJumpDay(1)" title="Ein Tag vor">▶</button>
-        </div>
-        <div class="tide-range-info">
+      <div class="tide-nav-right">
+        <span class="tide-range-info">
           <span id="tide-range-from-label">—</span>
-          <span style="color:var(--text-dim)">bis</span>
+          <span class="tide-range-sep">bis</span>
           <span id="tide-range-to-label">—</span>
-        </div>
+        </span>
       </div>
     </div>
   </div>
@@ -5353,6 +5347,8 @@ function setTideMode(mode) {
   });
   document.getElementById('tide-chart-mode').style.display = (mode === 'chart') ? '' : 'none';
   document.getElementById('tide-table-mode').style.display = (mode === 'table') ? '' : 'none';
+  const leg = document.getElementById('tide-table-legend-inline');
+  if (leg) leg.style.display = (mode === 'table') ? 'flex' : 'none';
   try { localStorage.setItem('tide_mode', mode); } catch(e) {}
   if (mode === 'chart') renderTideBig();
   else renderTideTable();
