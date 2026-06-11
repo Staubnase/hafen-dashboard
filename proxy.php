@@ -17,6 +17,16 @@ if ($origin && $origin !== $allowedHost) {
 }
 
 $target = $_GET['target'] ?? '';
+
+// Frontend-Konfiguration (API-Keys) aus config.php — liegt nur auf dem Server
+if ($target === 'config') {
+    $config = file_exists(__DIR__ . '/config.php') ? include __DIR__ . '/config.php' : [];
+    header('Content-Type: application/json');
+    header('Cache-Control: no-store');
+    echo json_encode(['tomtomKey' => $config['tomtom_api_key'] ?? '']);
+    exit;
+}
+
 if (!isset($ALLOWED[$target])) {
     http_response_code(400);
     exit('Unbekanntes Ziel');
