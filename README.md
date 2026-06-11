@@ -9,7 +9,7 @@ Benötigt: Apache/PHP-Hosting mit `curl`-Extension (Standard bei jedem Shared Ho
 
 1. Dateien ins Zielverzeichnis hochladen (z. B. `/hafen-dashboard/`):
    - `index.html`
-   - `proxy.php`
+   - `api.php`
 2. `config.example.php` als `config.php` kopieren und den TomTom API Key eintragen.
    `config.php` **nicht** ins Git-Repo committen (steht in `.gitignore`).
 3. Fertig — keine Datenbank, kein Build-Schritt.
@@ -17,7 +17,7 @@ Benötigt: Apache/PHP-Hosting mit `curl`-Extension (Standard bei jedem Shared Ho
 ## Architektur
 
 - **`index.html`** — komplette Anwendung (statisch, kein Framework)
-- **`proxy.php`** — same-origin Proxy für APIs ohne CORS-Header:
+- **`api.php`** — same-origin Proxy für APIs ohne CORS-Header:
   - `?target=bsh` → BSH Wasserstandsvorhersage (gdi.bsh.de)
   - `?target=mobilithek` → Brückensperrmeldungen (mobilithek.info:8443)
   - `?target=config` → liefert den TomTom-Key aus `config.php` ans Frontend
@@ -28,7 +28,7 @@ Benötigt: Apache/PHP-Hosting mit `curl`-Extension (Standard bei jedem Shared Ho
 - Content-Security-Policy im HTML-Head
 - SRI-Hashes für CDN-Ressourcen (Leaflet, Chart.js)
 - Alle externen API-Daten werden vor dem Rendern escaped (`esc()`)
-- `proxy.php`: Ziel-Whitelist, nur same-origin, keine offenen CORS-Header
+- `api.php`: Ziel-Whitelist, nur same-origin, keine offenen CORS-Header
 - API-Keys liegen nur auf dem Server (`config.php`), nie im Repo
 
 ## Hinweis Mobilithek
