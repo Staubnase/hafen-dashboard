@@ -4,12 +4,28 @@
 <meta charset="UTF-8">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
+  font-src https://fonts.gstatic.com;
+  img-src 'self' data: https://*.tile.openstreetmap.org https://api.tomtom.com https://windy.com https://*.windy.com;
+  connect-src 'self' https://pegelonline.wsv.de https://api.open-meteo.com https://api.tomtom.com;
+  frame-src https://embed.windy.com;
+  object-src 'none';
+  base-uri 'self';
+">
 <title>Hafen Dashboard — Hamburg</title>
+<!-- TomTom API key wird serverseitig via nginx sub_filter injiziert -->
+<meta name="tomtom-key" content="__TOMTOM_API_KEY__">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha256-oVuAv6PGxRYBrp4oHDqvdCiCCKUT4YUVX5vl5o31CQ=" crossorigin="anonymous"></script>
 <style>
 /* ═══════════════════════════════════════
    TOKENS
@@ -1780,6 +1796,17 @@ function chartOptions(extra = {}) {
   };
 }
 
+// Schützt gegen XSS wenn externe API-Daten in innerHTML eingefügt werden
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function loadPegel() {
   const badge = document.getElementById('pegel-badge');
   badge.textContent = 'Laden…'; badge.className = 'badge badge-idle';
@@ -1979,11 +2006,7 @@ function renderPegelFallback() {
 // Mobilithek HTTPS Client-Pull Endpunkt für HPA Brückensperrungen
 // Die URL wird über die gleiche CORS-Proxy-Kette wie BSH abgerufen.
 // Falls der Abruf fehlschlägt → Fallback auf eingebettete XML.
-// Eigener nginx-Proxy (Coolify) — kann Port 8443 erreichen, Cloudflare Worker nicht
-const MOBILITHEK_NGINX_PROXY = 'http://dtbqa08d0xsfnx5db5jfs7kg.37.120.190.92.sslip.io/mobilithek';
-
-const BRUECKEN_DATA_URL = MOBILITHEK_NGINX_PROXY
-  || (window._CF_WORKER_URL ? `${window._CF_WORKER_URL}?target=mobilithek` : 'proxy.php?target=mobilithek');
+const BRUECKEN_DATA_URL = '/api/mobilithek';
 
 // Bekannte Brücken im Harburger Hafengebiet: sourceIdentification → Anzeigename
 const BRUECKEN_NAMES = {
@@ -2079,8 +2102,8 @@ function renderBrueckenFromDatex(bridges) {
     return `<div class="bruecke">
       <div class="b-dot ${dc}"></div>
       <div class="b-info">
-        <div class="b-name">${b.name}</div>
-        <div class="b-detail">${b.detail}</div>
+        <div class="b-name">${esc(b.name)}</div>
+        <div class="b-detail">${esc(b.detail)}</div>
       </div>
       <div class="b-tag ${tc}">${lbl}</div>
     </div>`;
@@ -2100,11 +2123,7 @@ async function loadBruecken() {
   badge.textContent = 'Laden…'; badge.className = 'badge badge-idle';
   let xmlStr = null;
 
-  // Live-Abruf: zuerst lokales proxy.php, dann öffentliche CORS-Proxies
-  const brueckenUrls = [
-    BRUECKEN_DATA_URL,  // proxy.php?target=mobilithek (direkt, kein Wrapper)
-    ...BSH_PROXIES.slice(1).map(fn => fn('https://mobilithek.info:8443/mobilithek/api/v1.0/subscription/981881661821800448/clientPullService?subscriptionID=981881661821800448')),
-  ];
+  const brueckenUrls = [BRUECKEN_DATA_URL];
   for (const url of brueckenUrls) {
     try {
       const res = await fetch(url, { cache: 'no-store' });
@@ -2314,21 +2333,21 @@ function initMap() {
     [53.492, 10.040],  // Richtung Norderelbbrücken
   ], { color:'#4d94ff', weight:3, opacity:0.35 }).bindPopup('Süderelbe').addTo(osmMap);
 
-  // Default key — auto-activate traffic on load
-  const DEFAULT_KEY = 'qGa9XMA5tt54CNmW8Ovn8mDxmVwbfsEi';
+  const DEFAULT_KEY = document.querySelector('meta[name="tomtom-key"]')?.content || '';
   try {
     const saved = sessionStorage.getItem('tomtom_key') || DEFAULT_KEY;
     document.getElementById('tomtom-key-input').value = saved;
-    applyTrafficKey(saved, true);
+    if (saved) applyTrafficKey(saved, true);
   } catch(e) {
-    document.getElementById('tomtom-key-input').value = DEFAULT_KEY;
-    applyTrafficKey(DEFAULT_KEY, true);
+    if (DEFAULT_KEY) applyTrafficKey(DEFAULT_KEY, true);
   }
 }
 
 
 function activateTraffic() {
-  const key = document.getElementById('tomtom-key-input').value.trim() || 'qGa9XMA5tt54CNmW8Ovn8mDxmVwbfsEi';
+  const key = document.getElementById('tomtom-key-input').value.trim()
+           || document.querySelector('meta[name="tomtom-key"]')?.content || '';
+  if (!key) return;
   applyTrafficKey(key, true);
   try { sessionStorage.setItem('tomtom_key', key); } catch(e) {}
 }
@@ -2626,10 +2645,10 @@ async function loadIncidents() {
       const isFuture = i._isFuture;
       const cat     = INCIDENT_CATEGORY[p.iconCategory ?? 0] || INCIDENT_CATEGORY[0];
       const [label, sev, icon] = cat;
-      const road    = (p.roadNumbers && p.roadNumbers[0])
-                    || p.from || p.to || 'Unbenannte Straße';
-      const route   = [p.from, p.to].filter(Boolean).join(' → ');
-      const desc    = p.events && p.events[0] && p.events[0].description;
+      const road    = esc((p.roadNumbers && p.roadNumbers[0])
+                    || p.from || p.to || 'Unbenannte Straße');
+      const route   = [p.from, p.to].filter(Boolean).map(esc).join(' → ');
+      const desc    = p.events && p.events[0] && esc(p.events[0].description);
       const delayMin = p.delay ? Math.round(p.delay / 60) : 0;
       const lenKm    = p.length ? (p.length / 1000).toFixed(1) : null;
 
@@ -4173,24 +4192,10 @@ function parseBSH() {
 //  3. Last resort: statische 2026-Vorausberechnung (BSH_RAW im Code)
 // ══════════════════════════════════════════
 
-// --- BSH Konfiguration ---
-// BSH hat API auf OGC API umgestellt (gdi.bsh.de/ldproxy)
+// Alle API-Aufrufe laufen über den lokalen nginx-Proxy (/api/).
+// Kein CORS-Problem, keine externen Proxies, kein Datenleck.
 const BSH_TARGET_URL = 'https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast/collections/waterlevelforecastdata/items/hamburg_st-pauli?f=json';
-// Proxy-Kette: zuerst lokaler nginx-Proxy (kein CORS-Problem), dann öffentliche Fallbacks.
-// Lokaler Proxy erfordert die nginx-Location-Blöcke aus dem Repo (nginx-proxy.conf).
-// ↓ Cloudflare Worker URL hier eintragen (z.B. https://hafen-proxy.DEIN-NAME.workers.dev)
-window._CF_WORKER_URL = 'https://hafen-dashboard.nico29-vogel.workers.dev';
-
-const BSH_PROXIES = [
-  ...(window._CF_WORKER_URL ? [_ => `${window._CF_WORKER_URL}?target=bsh`] : []),
-  _ => `proxy.php?target=bsh`,
-  u => `https://corsproxy.io/?apikey=bf339ca7&url=${encodeURIComponent(u)}`,
-  u => `https://corsproxy.org/?${encodeURIComponent(u)}`,
-  u => `https://cors.eu.org/${u}`,
-  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-  u => `https://api.cors.lol/?url=${encodeURIComponent(u)}`,
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-];
+const BSH_PROXIES = [_ => '/api/bsh'];
 
 // --- PEGELONLINE Konfiguration (Fallback) ---
 const STPAULI_UUID = 'b97db2fe-82ff-4bde-a73b-f087a3b0f9c4';  // Harburg
