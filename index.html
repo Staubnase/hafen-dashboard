@@ -5239,6 +5239,16 @@ function collectTideBigSeries() {
       const extra = precomputedPeaks.filter(p => p.ts.getTime() > liveMax);
       result.peaks.push(...extra);
     }
+  } else if (src.source === 'static' && Array.isArray(src.hwnw_forecast)) {
+    // Statische BSH-Jahrestabelle (BSH_RAW) — heightPNP in m → cm PNP
+    const allPeaks = src.hwnw_forecast.map(d => ({
+      ts: d.dt, cm: Math.round(d.heightPNP * 100), typ: d.typ
+    }));
+    result.peaks = allPeaks;
+    if (src.MHW) result.mhwCm = src.MHW;
+    if (src.MNW) result.mnwCm = src.MNW;
+    if (src['PNP (unter NHN)']) result.PNP = src['PNP (unter NHN)'] / 100;
+    _buildSinusInterp(allPeaks, result);
   }
   return result;
 }
