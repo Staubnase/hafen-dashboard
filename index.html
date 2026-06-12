@@ -10,7 +10,7 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
   font-src https://fonts.gstatic.com;
   img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://api.tomtom.com https://windy.com https://*.windy.com;
-  connect-src 'self' https://pegelonline.wsv.de https://api.open-meteo.com https://api.tomtom.com https://gdi.bsh.de https://api.allorigins.win https://api.codetabs.com https://corsproxy.io;
+  connect-src 'self' https://pegelonline.wsv.de https://api.open-meteo.com https://api.tomtom.com https://gdi.bsh.de;
   frame-src https://embed.windy.com;
   object-src 'none';
   base-uri 'self';
@@ -4288,14 +4288,8 @@ function parseBSH() {
 // Auf GitHub Pages gibt es kein PHP → api.php liefert nur Quelltext, JSON.parse
 // schlägt fehl, und die öffentlichen CORS-Proxies dahinter rufen BSH direkt ab.
 const BSH_TARGET_URL = 'https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast/collections/waterlevelforecastdata/items/hamburg_st-pauli?f=json';
-// Proxy-Eintrag: { url: fn, unwrap?: fn } — unwrap extrahiert JSON aus Proxy-Envelope
 const BSH_PROXIES = [
   { url: _ => 'api.php?target=bsh' },
-  { url: u => `https://corsproxy.io/?${encodeURIComponent(u)}` },
-  { url: u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-    unwrap: j => JSON.parse(j.contents) },
-  { url: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
-  { url: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
 ];
 
 // --- PEGELONLINE Konfiguration (Fallback) ---
