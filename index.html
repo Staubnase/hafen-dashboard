@@ -1199,7 +1199,7 @@ footer {
 #pegel-card .pegel-mini-stats { flex-shrink: 0; }
 .data-table {
   width: 100%; border-collapse: collapse;
-  font-family: var(--mono); font-size: 11px;
+  font-family: var(--mono); font-size: 13px;
 }
 .data-table thead th {
   background: var(--bg2);
@@ -1208,7 +1208,7 @@ footer {
   padding: 6px 10px; text-align: left;
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 1;
-  font-size: 9px;
+  font-size: 10px;
   white-space: nowrap;
 }
 .data-table tbody tr {
@@ -1234,7 +1234,7 @@ footer {
 .data-table .ev-badge {
   display: inline-block;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 11px; font-weight: 700;
+  font-size: 12px; font-weight: 700;
   letter-spacing: 0.12em;
   padding: 3px 10px; border-radius: 100px;
   line-height: 1.3;
@@ -4579,20 +4579,24 @@ function renderGezeiten() {
   // Scheitelwert-Tabelle
   //   Live (PEGELONLINE): erkannte HW/NW der letzten 7 Tage — neueste zuerst
   //   Fallback (statische BSH 2026): alle Events der nächsten 14 Tage
+  // Chronologisch aufsteigend — früheste oben
   const eventsForTable = useLive
-    ? [...all].sort((a, b) => b.dt - a.dt).slice(0, 40)
+    ? [...all].sort((a, b) => b.dt - a.dt).slice(0, 40).reverse()
     : all.filter(e => { const d=(e.dt-todayRef)/86400000; return d>=0&&d<14; });
 
   const bshTbody = document.getElementById('bsh-tbody');
   if (bshTbody) {
     bshTbody.innerHTML = eventsForTable.map(e => {
       const hw = e.typ === 'H';
-      // Für Live-Daten: forecast-String direkt benutzen (z.B. "-0,5 m")
-      // Für Fallback: selbst berechnen
-      const abwStr = useLive && e.forecast
-        ? e.forecast
-        : ((hw ? e.heightPNP - MHW : e.heightPNP - MNW) >= 0 ? '+' : '')
-          + (hw ? e.heightPNP - MHW : e.heightPNP - MNW).toFixed(2) + ' m';
+      // Abweichung immer auf eine Nachkommastelle gerundet.
+      // Live-Daten liefern einen String (z.B. "-0,17 m") → Zahl parsen.
+      let abwVal = null;
+      if (useLive && e.forecast) {
+        const n = parseFloat(String(e.forecast).replace(',', '.'));
+        if (!isNaN(n)) abwVal = n;
+      }
+      if (abwVal == null) abwVal = hw ? e.heightPNP - MHW : e.heightPNP - MNW;
+      const abwStr = (abwVal >= 0 ? '+' : '') + abwVal.toFixed(1) + ' m';
       const dateStr = `${String(e.day).padStart(2,'0')}.${String(e.month).padStart(2,'0')}.`;
       const timeStr = `${String(e.hour).padStart(2,'0')}:${String(e.min).padStart(2,'0')}`;
       const cls = hw ? 'row-hw' : 'row-nw';
