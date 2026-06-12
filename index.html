@@ -1707,7 +1707,10 @@ footer {
       </div>
       <div class="tide-view-actions">
         <span class="tide-legend-inline" id="tide-table-legend-inline" style="display:none">
-          <span class="tide-legend-item"><span class="tide-legend-bar"></span> Ereignis ±2h</span>
+          <span class="tide-legend-item"><span class="tide-legend-bar"></span> NW-Fenster (±Std)</span>
+          <span class="tide-legend-item"><span class="tide-legend-bar" style="background:#8fb3e8;border-color:#4a7bc8"></span> HW-Fenster (±Std)</span>
+          <span class="tide-legend-item"><span class="tide-legend-bar" style="background:rgba(220,38,38,0.25);border-color:#dc2626"></span> Pegel ≥ Grenze</span>
+          <span class="tide-legend-item"><span class="tide-legend-bar" style="background:repeating-linear-gradient(45deg,#86c26a,#86c26a 4px,#b8dfaa 4px,#b8dfaa 8px);opacity:.75"></span> Vorberechnung</span>
           <span class="tide-legend-item"><span class="tide-legend-workhours"></span> 07–17 Uhr</span>
         </span>
         <div class="range-selector" id="tide-mode-selector">
@@ -1761,12 +1764,14 @@ footer {
         </span>
       </div>
       <div class="tide-nav-filter">
-        <span class="tide-filter-label">Wasserstand</span>
+        <span class="tide-filter-label">±&nbsp;Std</span>
+        <input type="number" id="tide-event-hours" class="tide-level-input" value="2" min="0.5" max="6" step="0.5" oninput="setTideEventHours()" title="Zeitfenster um den Scheitelwert in Stunden" />
+        <span class="tide-filter-sep" style="margin:0 12px 0 4px;color:var(--border)">|</span>
+        <span class="tide-filter-label">Pegelgrenze</span>
         <div class="tide-filter-inputs">
-          <input type="number" id="tide-level-min" class="tide-level-input" placeholder="Min cm" step="10" oninput="setTideLevelFilter()" title="Minimum Wasserstand (cm NHN)" />
-          <span class="tide-filter-sep">–</span>
-          <input type="number" id="tide-level-max" class="tide-level-input" placeholder="Max cm" step="10" oninput="setTideLevelFilter()" title="Maximum Wasserstand (cm NHN)" />
-          <span class="tide-filter-unit">cm</span>
+          <input type="number" id="tide-level-min" class="tide-level-input" placeholder="cm" step="10" oninput="setTideLevelFilter()" title="Ab diesem Wasserstand (cm) wird ein roter Balken angezeigt" />
+          <span class="tide-filter-unit">cm NHN</span>
+          <span style="font-family:var(--mono);font-size:10px;color:#dc2626;margin-left:4px">● roter Balken</span>
         </div>
       </div>
     </div>
@@ -1843,6 +1848,34 @@ function esc(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// ══════════════════════════════════════════
+//  VORBERECHNUNGS-TXT (Jahres-Gezeitentafeln)
+//  Format: eine Zeile pro Ereignis, z.B.:
+//  2026-06-15 03:42 NW 312
+//  2026-06-15 10:18 HW 698
+// ══════════════════════════════════════════
+let precomputedPeaks = [];   // {ts, cm, typ:'H'|'N', source:'precomputed'}
+
+async function loadPrecomputedTides() {
+  try {
+    const res = await fetch('gezeiten.txt');
+    if (!res.ok) return;
+    const text = await res.text();
+    const peaks = [];
+    for (const line of text.split('\n')) {
+      const m = line.trim().match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+(HW|NW)\s+(\d+)/i);
+      if (!m) continue;
+      const ts = new Date(`${m[1]}T${m[2]}:00`);
+      if (isNaN(ts.getTime())) continue;
+      peaks.push({ ts, cm: parseInt(m[4]), typ: m[3].toUpperCase() === 'HW' ? 'H' : 'N', source: 'precomputed' });
+    }
+    precomputedPeaks = peaks;
+    console.log(`[Gezeiten] ${peaks.length} Vorberechnungswerte geladen`);
+  } catch(e) {
+    console.warn('[Gezeiten] gezeiten.txt nicht gefunden oder Fehler:', e.message);
+  }
 }
 
 async function loadPegel() {
@@ -5022,6 +5055,7 @@ function refreshAll() {
   document.getElementById('footer-ts').textContent =
     `Zuletzt aktualisiert: ${new Date().toLocaleString('de-DE')}`;
 
+  loadPrecomputedTides();
   loadPegel();
   loadBruecken();
   loadWetter();
@@ -5117,6 +5151,12 @@ function collectTideBigSeries() {
       ts: new Date(d.timestamp), cm: toN(d.value), typ: d.event === 'HW' ? 'H' : 'N'
     }));
     result.peaks = allPeaks;
+    // Vorberechnungswerte auffüllen wo keine Live-Daten vorliegen
+    if (precomputedPeaks.length) {
+      const liveMax = allPeaks.length ? Math.max(...allPeaks.map(p => p.ts.getTime())) : 0;
+      const extra = precomputedPeaks.filter(p => p.ts.getTime() > liveMax);
+      result.peaks = [...allPeaks, ...extra];
+    }
 
     // Kurvendaten aus curve_forecast (Werte können Strings sein!)
     if (src.curve_forecast?.data) {
@@ -5156,6 +5196,11 @@ function collectTideBigSeries() {
     // PEGELONLINE-Fallback: nur Messwerte + detektierte Peaks
     src.measurements.forEach(m => result.measure.push({ts: m.ts, cm: m.cm}));
     src.peaks.forEach(p => result.peaks.push({ts: p.ts, cm: p.cm, typ: p.typ}));
+    if (precomputedPeaks.length) {
+      const liveMax = result.peaks.length ? Math.max(...result.peaks.map(p => p.ts.getTime())) : 0;
+      const extra = precomputedPeaks.filter(p => p.ts.getTime() > liveMax);
+      result.peaks.push(...extra);
+    }
   }
   return result;
 }
@@ -5541,7 +5586,9 @@ function renderTideTable() {
       const p = peaks[r];
       const isFirst = r === 0;
       // Datum nur in der ersten Zeile des Tages
-      html += `<div class="tide-row-date${isWeekend?' weekend':''}">${isFirst ? fmtDate(day) : ''}</div>`;
+      const isPrecomp = peaks.length > 0 && peaks[0].source === 'precomputed';
+      const precompCls = isPrecomp ? ' precomputed' : '';
+      html += `<div class="tide-row-date${isWeekend?' weekend':''}${precompCls}">${isFirst ? fmtDate(day) + (isPrecomp ? ' ⓘ' : '') : ''}</div>`;
       // "früh"/"spät"-Label wenn zwei Peaks am Tag
       let label = '';
       if (peaks.length === 2) label = r === 0 ? 'früh' : 'spät';
