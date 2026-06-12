@@ -4654,7 +4654,7 @@ function renderGezeiten() {
     const toCmNHN = v => v == null ? null : Math.round(v + PNP * 100);
 
     // BSH-Farbpalette (wie auf der BSH-Seite)
-    const BSH_RED    = '#E10105';   // Kurvenvorhersage
+    const BSH_RED    = '#1a6fd4';   // Kurvenvorhersage (blau wie BSH-Seite)
     const BSH_BLACK  = '#1a1a1a';   // Messwert/Beobachtung (Rohdaten)
     const BSH_GREEN  = '#16a34a';   // Gezeitenvorausberechnung/astro (gestrichelt)
     const BSH_MHW    = '#A0CBE8';
@@ -5437,7 +5437,7 @@ function renderTideBig() {
     datasets.push({ label: 'Gezeitenvorausberechnung', data: astroCm, borderColor: '#16a34a', borderWidth: 1.8, borderDash:[6,4], pointRadius:0, fill:false, tension:0.3, order:3 });
   }
   if (forecastCm.some(v => v != null)) {
-    datasets.push({ label: 'Kurvenvorhersage', data: forecastCm, borderColor: '#E10105', borderWidth: 2, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
+    datasets.push({ label: 'Kurvenvorhersage', data: forecastCm, borderColor: '#1a6fd4', borderWidth: 2, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
   }
   if (measureCm.some(v => v != null)) {
     datasets.push({ label: 'Beobachtung (Rohdaten)', data: measureCm, borderColor: '#1a1a1a', borderWidth: 2, pointRadius:0, fill:false, tension:0.25, spanGaps:false, order:1 });
