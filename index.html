@@ -4619,7 +4619,7 @@ function renderGezeiten() {
     const wd = weekdays[e.dt.getDay()];
     return `<div class="tide-box ${hw?'hw':'nw'}${isNext?' next-up':''}">
       <div class="tide-box-top">
-        <span class="tide-type-pill ${hw?'tp-hw':''}">${hw?'Hochwasser':'Niedrigwasser'}</span>
+        <span class="tide-type-pill ${hw?'tp-hw':''}">${hw?'Tidehochwasser':'Tideniedrigwasser'}</span>
         <span class="tide-date-small">${wd}, ${e.day}.${String(e.month).padStart(2,'0')}.</span>
       </div>
       <div class="tide-main-row">
