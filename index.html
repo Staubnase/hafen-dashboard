@@ -1423,8 +1423,8 @@ footer {
   border-radius: 0;
 }
 
-/* Events unterhalb der Kennwerte-Leiste */
-.gezeiten-events { margin-top: 14px; }
+/* Events oberhalb des Charts */
+.gezeiten-events { margin-bottom: 8px; }
 
 /* Section-Überschrift: klein, dezent */
 .section-label {
@@ -1518,12 +1518,12 @@ footer {
 
     <!-- Haupt-Layout: links Chart+Boxen, rechts Tabelle volle Höhe -->
     <div class="gezeiten-body-split">
-      <!-- Links: Chart oben, 3 Event-Boxen unten -->
+      <!-- Links: 3 Event-Boxen oben, Chart darunter -->
       <div class="gezeiten-left">
-        <div class="chart-wrap gezeiten-chart-flex" style="padding-top:26px;margin-top:8px">
+        <div class="gezeiten-events" id="gezeiten-events"></div>
+        <div class="chart-wrap gezeiten-chart-flex" style="padding-top:8px;margin-top:8px">
           <canvas id="gezeiten-chart"></canvas>
         </div>
-        <div class="gezeiten-events" id="gezeiten-events"></div>
       </div>
       <!-- Rechts: Tabelle volle Höhe -->
       <div class="gezeiten-right">
@@ -2431,15 +2431,10 @@ function initMap() {
     [53.492, 10.040],  // Richtung Norderelbbrücken
   ], { color:'#4d94ff', weight:3, opacity:0.35 }).bindPopup('Süderelbe').addTo(osmMap);
 
-  // TomTom-Key vom Server holen (config.php liegt nur auf dem Server, nicht im Repo)
-  fetch('api.php?target=config')
-    .then(r => r.ok ? r.json() : {})
-    .then(cfg => {
-      const key = cfg.tomtomKey || '';
-      document.getElementById('tomtom-key-input').value = key;
-      if (key) applyTrafficKey(key, true);
-    })
-    .catch(() => {});
+  // TODO: Key später aus api.php?target=config laden
+  const TOMTOM_KEY = 'qGa9XMA5tt54CNmW8Ovn8mDxmVwbfsEi';
+  document.getElementById('tomtom-key-input').value = TOMTOM_KEY;
+  applyTrafficKey(TOMTOM_KEY, true);
 }
 
 
@@ -4357,17 +4352,30 @@ async function loadBSH() {
   }
 
   // --- Versuch 2: PEGELONLINE (Harburg) ---
+  // UUID aus sessionStorage (von loadPegel gecacht) oder Stationssuche
   try {
-    const url = `https://pegelonline.wsv.de/webservices/rest-api/v2/stations/${STPAULI_UUID}/W/measurements.json?start=P7D`;
+    let uuid = sessionStorage.getItem('harburg_uuid') || STPAULI_UUID;
+    if (!sessionStorage.getItem('harburg_uuid')) {
+      try {
+        const sr = await fetch('https://pegelonline.wsv.de/webservices/rest-api/v2/stations.json?waters=ELBE&includeTimeseries=false');
+        if (sr.ok) {
+          const stations = await sr.json();
+          const harburg = stations.find(s => /harburg/i.test(s.shortname) || /harburg/i.test(s.longname));
+          if (harburg?.uuid) { uuid = harburg.uuid; sessionStorage.setItem('harburg_uuid', uuid); }
+        }
+      } catch(_) {}
+    }
+    const url = `https://pegelonline.wsv.de/webservices/rest-api/v2/stations/${uuid}/W/measurements.csv?contentType=text/plain&start=P7D`;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const raw = await res.json();
-    if (!Array.isArray(raw) || !raw.length) throw new Error('Keine Messwerte');
+    const text = await res.text();
+    const lines = text.trim().split('\n').filter(l => /^\d{4}/.test(l.trim()));
+    if (!lines.length) throw new Error('Keine Messwerte');
 
-    const measurements = raw.map(m => ({
-      ts: new Date(m.timestamp),
-      cm: m.value,
-    })).filter(m => !isNaN(m.ts.getTime()) && typeof m.cm === 'number');
+    const measurements = lines.map(l => {
+      const [ts, val] = l.split(';');
+      return { ts: new Date(ts.trim()), cm: parseFloat(val.trim()) };
+    }).filter(m => !isNaN(m.ts.getTime()) && !isNaN(m.cm));
 
     const smoothed = rollingMean(measurements.map(m => m.cm), 15);
     const peaks = detectPeaks(measurements, smoothed, 180 * 60 * 1000);
@@ -4654,7 +4662,7 @@ function renderGezeiten() {
     const toCmNHN = v => v == null ? null : Math.round(v + PNP * 100);
 
     // BSH-Farbpalette (wie auf der BSH-Seite)
-    const BSH_RED    = '#E10105';   // Kurvenvorhersage
+    const BSH_RED    = '#1a6fd4';   // Kurvenvorhersage (blau wie BSH-Seite)
     const BSH_BLACK  = '#1a1a1a';   // Messwert/Beobachtung (Rohdaten)
     const BSH_GREEN  = '#16a34a';   // Gezeitenvorausberechnung/astro (gestrichelt)
     const BSH_MHW    = '#A0CBE8';
@@ -5437,7 +5445,7 @@ function renderTideBig() {
     datasets.push({ label: 'Gezeitenvorausberechnung', data: astroCm, borderColor: '#16a34a', borderWidth: 1.8, borderDash:[6,4], pointRadius:0, fill:false, tension:0.3, order:3 });
   }
   if (forecastCm.some(v => v != null)) {
-    datasets.push({ label: 'Kurvenvorhersage', data: forecastCm, borderColor: '#E10105', borderWidth: 2, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
+    datasets.push({ label: 'Kurvenvorhersage', data: forecastCm, borderColor: '#1a6fd4', borderWidth: 2, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
   }
   if (measureCm.some(v => v != null)) {
     datasets.push({ label: 'Beobachtung (Rohdaten)', data: measureCm, borderColor: '#1a1a1a', borderWidth: 2, pointRadius:0, fill:false, tension:0.25, spanGaps:false, order:1 });
