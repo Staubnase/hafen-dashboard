@@ -10,7 +10,7 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
   font-src https://fonts.gstatic.com;
   img-src 'self' data: https://*.tile.openstreetmap.org https://api.tomtom.com https://windy.com https://*.windy.com;
-  connect-src 'self' https://pegelonline.wsv.de https://api.open-meteo.com https://api.tomtom.com;
+  connect-src 'self' https://pegelonline.wsv.de https://api.open-meteo.com https://api.tomtom.com https://gdi.bsh.de https://api.allorigins.win https://api.codetabs.com https://corsproxy.io;
   frame-src https://embed.windy.com;
   object-src 'none';
   base-uri 'self';
@@ -19,12 +19,9 @@
 <!-- TomTom API key wird zur Laufzeit aus config.php geladen (liegt nur auf dem Server) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
-        integrity="sha256-oVuAv6PGxRYBrp4oHDqvdCiCCKUT4YUVX5vl5o31CQ=" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 /* ═══════════════════════════════════════
    TOKENS
@@ -2067,13 +2064,15 @@ function renderPegelFallback() {
     pairs.push({ ts: new Date(t), val: Math.round(h) });
   }
   const vals = pairs.map(p => p.val);
-  document.getElementById('pegel-now').innerHTML = ((vals[vals.length-1]/100)-5.015).toFixed(2) + '<span>m NHN</span>';
-  document.getElementById('pegel-max').innerHTML = ((Math.max(...vals)/100)-5.015).toFixed(2) + '<span>m NHN</span>';
-  document.getElementById('pegel-min').innerHTML = ((Math.min(...vals)/100)-5.015).toFixed(2) + '<span>m NHN</span>';
-  document.getElementById('pegel-trend').innerHTML = '<span class="t-up">↗</span>';
-  document.getElementById('pegel-badge').textContent = 'Demo';
+  const toNHN = cm => ((cm/100)-5.015).toFixed(2);
+  const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  setHtml('pegel-now', toNHN(vals[vals.length-1]) + '<span>m NHN</span>');
+  setHtml('pegel-trend', '<span class="t-up">↗</span>');
+  const badge = document.getElementById('pegel-badge');
+  if (badge) badge.textContent = 'Demo';
   // Demo table
   const tbody = document.getElementById('pegel-tbody');
+  if (!tbody) return;
   tbody.innerHTML = pairs.slice(-20).reverse().map(p => {
     const d = `${p.ts.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'})}`;
     const t = `${p.ts.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`;
@@ -4290,10 +4289,16 @@ function parseBSH() {
 //  3. Last resort: statische 2026-Vorausberechnung (BSH_RAW im Code)
 // ══════════════════════════════════════════
 
-// Alle API-Aufrufe laufen über das lokale api.php (same-origin).
-// Kein CORS-Problem, keine externen Proxies, kein Datenleck.
+// Primär läuft alles über das lokale api.php (same-origin, auf dem PHP-Host).
+// Auf GitHub Pages gibt es kein PHP → api.php liefert nur Quelltext, JSON.parse
+// schlägt fehl, und die öffentlichen CORS-Proxies dahinter rufen BSH direkt ab.
 const BSH_TARGET_URL = 'https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast/collections/waterlevelforecastdata/items/hamburg_st-pauli?f=json';
-const BSH_PROXIES = [_ => 'api.php?target=bsh'];
+const BSH_PROXIES = [
+  _ => 'api.php?target=bsh',
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+];
 
 // --- PEGELONLINE Konfiguration (Fallback) ---
 const STPAULI_UUID = 'b97db2fe-82ff-4bde-a73b-f087a3b0f9c4';  // Harburg
