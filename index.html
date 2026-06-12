@@ -1790,6 +1790,41 @@ footer {
 // ══════════════════════════════════════════
 let pegelChart = null;
 
+// Scheitelwertvorhersage als Bereich (I-Beam/Fehlerbalken wie beim BSH).
+// Zeichnet an jedem Scheitelwert eine vertikale Linie mit Kappen, die die
+// Vorhersage-Toleranz darstellt (BSH-typisch ca. ±15 cm).
+const PEAK_TOLERANCE_CM = 15;
+const peakRangePlugin = {
+  id: 'peakRange',
+  afterDatasetsDraw(chart) {
+    const { ctx, scales: { y } } = chart;
+    if (!y) return;
+    chart.data.datasets.forEach((ds, di) => {
+      if (!/Scheitelwert/i.test(ds.label || '')) return;
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden) return;
+      const color = ds.pointBorderColor || ds.backgroundColor || '#995D02';
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      const cap = 5;
+      meta.data.forEach((pt, i) => {
+        const v = ds.data[i];
+        if (v == null || !pt) return;
+        const x   = pt.x;
+        const yHi = y.getPixelForValue(v + PEAK_TOLERANCE_CM);
+        const yLo = y.getPixelForValue(v - PEAK_TOLERANCE_CM);
+        ctx.beginPath();
+        ctx.moveTo(x, yHi); ctx.lineTo(x, yLo);             // vertikale Linie
+        ctx.moveTo(x - cap, yHi); ctx.lineTo(x + cap, yHi); // obere Kappe
+        ctx.moveTo(x - cap, yLo); ctx.lineTo(x + cap, yLo); // untere Kappe
+        ctx.stroke();
+      });
+      ctx.restore();
+    });
+  }
+};
+
 function getChartColors() {
   return {
     grid:  '#e8e8e4',
@@ -4617,9 +4652,9 @@ function renderGezeiten() {
     const toCmNHN = v => v == null ? null : Math.round(v + PNP * 100);
 
     // BSH-Farbpalette (wie auf der BSH-Seite)
-    const BSH_RED    = '#E10105';   // Messwert/Beobachtung
-    const BSH_ORANGE = '#DB8503';   // Kurvenvorhersage (nur BSH)
-    const BSH_GREEN  = '#3DDF02';   // Gezeitenvorausberechnung/astro (nur BSH)
+    const BSH_RED    = '#E10105';   // Kurvenvorhersage
+    const BSH_BLACK  = '#1a1a1a';   // Messwert/Beobachtung (Rohdaten)
+    const BSH_GREEN  = '#16a34a';   // Gezeitenvorausberechnung/astro (gestrichelt)
     const BSH_MHW    = '#A0CBE8';
     const BSH_MNW    = '#FF9D9A';
     const BSH_BROWN  = '#995D02';
@@ -4898,10 +4933,11 @@ function renderGezeiten() {
     const curveAsNHN = hasCurveData && !bshIsInterpolated;
     if (isBSH && sampledAstro) {
       datasets.push({
-        label: 'Gezeitenvorausberechnung (astro)',
+        label: 'Gezeitenvorausberechnung',
         data: curveAsNHN ? sampledAstro : sampledAstro.map(toCmNHN),
         borderColor: BSH_GREEN,
-        borderWidth: 1.6,
+        borderWidth: 1.8,
+        borderDash: [6, 4],   // gestrichelt
         pointRadius: 0, pointHoverRadius: 4,
         fill: false, tension: 0.3,
         order: 3,
@@ -4909,20 +4945,20 @@ function renderGezeiten() {
     }
     if (isBSH && sampledFc) {
       datasets.push({
-        label: 'Kurvenvorhersage (BSH)',
+        label: 'Kurvenvorhersage',
         data: curveAsNHN ? sampledFc : sampledFc.map(toCmNHN),
-        borderColor: BSH_ORANGE,
-        borderWidth: 1.8,
+        borderColor: BSH_RED,
+        borderWidth: 2,
         pointRadius: 0, pointHoverRadius: 4,
         fill: false, tension: 0.3, spanGaps: true,
         order: 2,
       });
     }
-    // Hauptlinie
+    // Hauptlinie (Beobachtung/Messwert)
     const lineLabel = bshIsInterpolated
-      ? 'Gezeitenvorhersage (BSH)'
-      : (isBSH ? 'Wasserstand (BSH Live)' : 'Messwert (PEGELONLINE)');
-    const lineColor = bshIsInterpolated ? BSH_ORANGE : BSH_RED;
+      ? 'Kurvenvorhersage'
+      : (isBSH ? 'Beobachtung (Rohdaten)' : 'Messwert (PEGELONLINE)');
+    const lineColor = bshIsInterpolated ? BSH_RED : BSH_BLACK;
     datasets.push({
       label: lineLabel,
       data: curveAsNHN ? sampled.map(m => m.cm) : sampled.map(m => toCmNHN(m.cm)),
@@ -4933,12 +4969,12 @@ function renderGezeiten() {
       order: 1,
     });
     datasets.push({
-      label: isBSH ? 'Offizielle Scheitelwerte (HW/NW)' : 'Erkannte Scheitelwerte (HW/NW)',
+      label: 'Scheitelwertvorhersage (Bereich)',
       data: scheitelData,
       borderColor: 'transparent',
       backgroundColor: BSH_BROWN,
       pointStyle: 'rectRot',
-      pointRadius: 5, pointHoverRadius: 7,
+      pointRadius: 3, pointHoverRadius: 6,
       pointBorderColor: BSH_BROWN,
       pointBorderWidth: 1,
       showLine: false,
@@ -4949,7 +4985,7 @@ function renderGezeiten() {
       type: 'line',
       data: { labels, datasets },
       options: baseOpts,
-      plugins: [workingHoursPlugin, dayBoundaryPlugin],
+      plugins: [workingHoursPlugin, dayBoundaryPlugin, peakRangePlugin],
     });
   } else {
     // Fallback: Scheitelwerte-Chart (7 Tage)
@@ -5386,18 +5422,18 @@ function renderTideBig() {
     { label: 'Mittleres Niedrigwasser (MNW)', data: mnwLine, borderColor: '#FF9D9A', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
   ];
   if (astroCm.some(v => v != null)) {
-    datasets.push({ label: 'Astronomische Gezeitenvorausberechnung', data: astroCm, borderColor: '#3DDF02', borderWidth: 1.6, pointRadius:0, fill:false, tension:0.3, order:3 });
+    datasets.push({ label: 'Gezeitenvorausberechnung', data: astroCm, borderColor: '#16a34a', borderWidth: 1.8, borderDash:[6,4], pointRadius:0, fill:false, tension:0.3, order:3 });
   }
   if (forecastCm.some(v => v != null)) {
-    datasets.push({ label: 'Kurvenvorhersage (BSH)', data: forecastCm, borderColor: '#DB8503', borderWidth: 1.8, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
+    datasets.push({ label: 'Kurvenvorhersage', data: forecastCm, borderColor: '#E10105', borderWidth: 2, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
   }
   if (measureCm.some(v => v != null)) {
-    datasets.push({ label: 'Messwert Harburg', data: measureCm, borderColor: '#E10105', borderWidth: 2, pointRadius:0, fill:false, tension:0.25, spanGaps:false, order:1 });
+    datasets.push({ label: 'Beobachtung (Rohdaten)', data: measureCm, borderColor: '#1a1a1a', borderWidth: 2, pointRadius:0, fill:false, tension:0.25, spanGaps:false, order:1 });
   }
   datasets.push({
-    label: 'Scheitelwerte (HW/NW)', data: peakData,
+    label: 'Scheitelwertvorhersage (Bereich)', data: peakData,
     borderColor: 'transparent', backgroundColor: '#995D02', pointStyle: 'rectRot',
-    pointRadius: 5, pointHoverRadius: 7, pointBorderColor: '#995D02', pointBorderWidth: 1,
+    pointRadius: 3, pointHoverRadius: 6, pointBorderColor: '#995D02', pointBorderWidth: 1,
     showLine: false, order: 0
   });
 
@@ -5428,7 +5464,7 @@ function renderTideBig() {
     type: 'line',
     data: { labels, datasets },
     options: opts,
-    plugins: [workingHoursPlugin, overlayPlugin]
+    plugins: [workingHoursPlugin, overlayPlugin, peakRangePlugin]
   });
 
   // Zeitbereich-Info aktualisieren
