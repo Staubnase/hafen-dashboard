@@ -1423,8 +1423,8 @@ footer {
   border-radius: 0;
 }
 
-/* Events unterhalb der Kennwerte-Leiste */
-.gezeiten-events { margin-top: 14px; }
+/* Events oberhalb des Charts */
+.gezeiten-events { margin-bottom: 8px; }
 
 /* Section-Überschrift: klein, dezent */
 .section-label {
@@ -1518,12 +1518,12 @@ footer {
 
     <!-- Haupt-Layout: links Chart+Boxen, rechts Tabelle volle Höhe -->
     <div class="gezeiten-body-split">
-      <!-- Links: Chart oben, 3 Event-Boxen unten -->
+      <!-- Links: 3 Event-Boxen oben, Chart darunter -->
       <div class="gezeiten-left">
-        <div class="chart-wrap gezeiten-chart-flex" style="padding-top:26px;margin-top:8px">
+        <div class="gezeiten-events" id="gezeiten-events"></div>
+        <div class="chart-wrap gezeiten-chart-flex" style="padding-top:8px;margin-top:8px">
           <canvas id="gezeiten-chart"></canvas>
         </div>
-        <div class="gezeiten-events" id="gezeiten-events"></div>
       </div>
       <!-- Rechts: Tabelle volle Höhe -->
       <div class="gezeiten-right">
