@@ -2431,15 +2431,41 @@ function initMap() {
     [53.492, 10.040],  // Richtung Norderelbbrücken
   ], { color:'#4d94ff', weight:3, opacity:0.35 }).bindPopup('Süderelbe').addTo(osmMap);
 
-  // TomTom-Key vom Server holen (config.php liegt nur auf dem Server, nicht im Repo)
+  // TomTom-Key: 1) Server (api.php) 2) localStorage (GitHub Pages Fallback)
   fetch('api.php?target=config')
-    .then(r => r.ok ? r.json() : {})
+    .then(r => r.ok ? r.json() : Promise.reject('no-php'))
     .then(cfg => {
       const key = cfg.tomtomKey || '';
-      document.getElementById('tomtom-key-input').value = key;
-      if (key) applyTrafficKey(key, true);
+      if (key) {
+        localStorage.setItem('tomtom_key', key);
+        document.getElementById('tomtom-key-input').value = key;
+        applyTrafficKey(key, true);
+      } else {
+        _tryLocalStorageKey();
+      }
     })
-    .catch(() => {});
+    .catch(() => _tryLocalStorageKey());
+
+  function _tryLocalStorageKey() {
+    const key = localStorage.getItem('tomtom_key') || '';
+    if (key) {
+      document.getElementById('tomtom-key-input').value = key;
+      applyTrafficKey(key, true);
+    } else {
+      // Kein Key verfügbar — Eingabe-Button anzeigen
+      const btn = document.getElementById('traffic-btn');
+      btn.textContent = '🔑 Traffic-Key eingeben';
+      btn.style.display = '';
+      btn.onclick = () => {
+        const k = prompt('TomTom API Key eingeben (wird lokal gespeichert):');
+        if (k && k.trim()) {
+          localStorage.setItem('tomtom_key', k.trim());
+          document.getElementById('tomtom-key-input').value = k.trim();
+          applyTrafficKey(k.trim(), true);
+        }
+      };
+    }
+  }
 }
 
 
