@@ -4,12 +4,27 @@
 <meta charset="UTF-8">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
+  font-src https://fonts.gstatic.com;
+  img-src 'self' data: https://*.tile.openstreetmap.org https://api.tomtom.com https://windy.com https://*.windy.com;
+  connect-src 'self' https://pegelonline.wsv.de https://api.open-meteo.com https://api.tomtom.com;
+  frame-src https://embed.windy.com;
+  object-src 'none';
+  base-uri 'self';
+">
 <title>Hafen Dashboard — Hamburg</title>
+<!-- TomTom API key wird zur Laufzeit aus config.php geladen (liegt nur auf dem Server) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha256-oVuAv6PGxRYBrp4oHDqvdCiCCKUT4YUVX5vl5o31CQ=" crossorigin="anonymous"></script>
 <style>
 /* ═══════════════════════════════════════
    TOKENS
@@ -307,12 +322,15 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 .tide-grid-header > .th {
   background: var(--bg2);
   border-bottom: 1px solid var(--border2);
-  padding: 4px 8px;
-  font-weight: 600; font-size: 10px;
+  padding: 6px 8px;
+  font-weight: 600; font-size: 11px;
   color: var(--text-muted);
   position: sticky; top: 0;
   z-index: 5;
 }
+.tide-grid-header > .th:nth-child(1) { position: sticky; top: 0; left: 0; z-index: 10; }
+.tide-grid-header > .th:nth-child(2) { position: sticky; top: 0; left: 120px; z-index: 10; }
+.tide-grid-header > .th:nth-child(3) { position: sticky; top: 0; left: 156px; z-index: 10; }
 /* Zeitachse: 96 Viertelstunden × 00 bis 24 Uhr → inneres Grid */
 .tide-grid-timeheader {
   display: grid;
@@ -340,30 +358,40 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 .tide-row-date, .tide-row-label, .tide-row-times, .tide-row-grid {
   padding: 2px 6px;
   border-bottom: 1px solid var(--border);
-  min-height: 18px;
+  min-height: 28px;
   display: flex; align-items: center;
 }
 .tide-row-date {
-  font-weight: 600; color: var(--text);
+  font-weight: 600; font-size: 12px; color: var(--text);
   border-right: 1px solid var(--border);
   background: var(--surface);
   white-space: nowrap;
+  position: sticky; left: 0; z-index: 3;
 }
 .tide-row-date.weekend { background: #f5f3ed; }
+.tide-row-date.precomputed { color: var(--text-muted); font-style: italic; }
+.tide-row-date.precomputed::after {
+  content: ' Vorber.';
+  font-size: 8px; font-style: normal; opacity: 0.6; margin-left: 2px;
+}
 .tide-row-label {
   color: var(--text-dim); text-transform: uppercase;
-  letter-spacing: 0.05em; font-size: 9px;
+  letter-spacing: 0.05em; font-size: 10px;
   border-right: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; left: 120px; z-index: 3;
 }
 .tide-row-times {
-  font-size: 10px;
+  font-size: 11px;
   gap: 8px;
   border-right: 1px solid var(--border);
   white-space: nowrap;
+  background: var(--surface);
+  position: sticky; left: 156px; z-index: 3;
 }
-.tide-row-times .t-main { font-weight: 600; color: var(--text); min-width: 42px; }
+.tide-row-times .t-main { font-weight: 700; color: var(--text); min-width: 46px; font-size: 12px; }
 .tide-row-times .t-pre,
-.tide-row-times .t-post { color: var(--text-dim); min-width: 42px; }
+.tide-row-times .t-post { color: var(--text-dim); min-width: 46px; }
 
 /* Zeit-Raster-Zeile: selbes 96-Spalten-Grid wie der Header */
 .tide-row-grid {
@@ -375,25 +403,51 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 }
 .tide-grid-cell {
   border-right: 1px solid rgba(0,0,0,.04);
-  min-height: 22px;
+  min-height: 28px;
 }
 .tide-grid-cell.major { border-right: 1px solid var(--border); }
 .tide-grid-cell.workhours {
   background: rgba(160, 203, 232, 0.18);
 }
-/* Der grüne Ereignis-Balken: absolute innerhalb der Zeile */
+/* Ereignis-Balken: absolut innerhalb der Zeile */
 .tide-event-bar {
   position: absolute;
-  top: 3px; bottom: 3px;
+  top: 4px; bottom: 4px;
   background: #86c26a;
-  border: 1px solid #5a9a42;
-  border-radius: 2px;
+  border: 1.5px solid #5a9a42;
+  border-radius: 3px;
   pointer-events: none;
   z-index: 2;
+  display: flex; align-items: center;
+  overflow: hidden;
 }
 .tide-event-bar.hw {
   background: #8fb3e8;
   border-color: #4a7bc8;
+}
+/* Roter Pegelgrenzwert-Balken */
+.tide-level-bar {
+  position: absolute;
+  top: 4px; bottom: 4px;
+  background: rgba(220, 38, 38, 0.25);
+  border: 1.5px solid #dc2626;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 3;
+}
+/* Vorberechnung (nicht Live) */
+.tide-row-date.precomputed { color: var(--text-muted); font-style: italic; }
+.tide-event-bar.precomputed {
+  background: repeating-linear-gradient(
+    45deg, #86c26a, #86c26a 4px, #b8dfaa 4px, #b8dfaa 8px
+  );
+  opacity: 0.75;
+}
+.tide-event-bar.hw.precomputed {
+  background: repeating-linear-gradient(
+    45deg, #8fb3e8, #8fb3e8 4px, #bdd4f2 4px, #bdd4f2 8px
+  );
+  opacity: 0.75;
 }
 .tide-scrub-row {
   display: flex; gap: 12px; align-items: center;
@@ -813,7 +867,7 @@ main {
 ═══════════════════════════════════════ */
 .wetter-topbar {
   display: flex; align-items: center; gap: 10px;
-  margin-bottom: 10px; flex-wrap: wrap;
+  margin-bottom: 6px; flex-wrap: wrap;
 }
 .wetter-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
 .w-temp {
@@ -832,18 +886,7 @@ main {
 }
 .w-pill strong { color: var(--text); font-weight: 600; font-size: 11px; }
 
-.radar-toggle {
-  margin-top: 10px; width: 100%;
-  padding: 6px; border-radius: var(--r-sm);
-  border: 1px solid var(--border);
-  background: var(--surface2); color: var(--text-muted);
-  font-family: var(--font); font-size: 11px; font-weight: 500;
-  cursor: pointer; transition: 0.15s;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-}
-.radar-toggle:hover { border-color: var(--border2); color: var(--text); }
-.radar-frame { display: none; margin-top: 8px; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); flex: 1; min-height: 0; }
-.radar-frame.open { display: flex; flex-direction: column; }
+.radar-frame { margin-top: 4px; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .radar-frame iframe { width: 100%; flex: 1; min-height: 0; border: none; display: block; }
 
 /* ═══════════════════════════════════════
@@ -1145,7 +1188,7 @@ footer {
 #pegel-card .pegel-mini-stats { flex-shrink: 0; }
 .data-table {
   width: 100%; border-collapse: collapse;
-  font-family: var(--mono); font-size: 11px;
+  font-family: var(--mono); font-size: 13px;
 }
 .data-table thead th {
   background: var(--bg2);
@@ -1154,7 +1197,7 @@ footer {
   padding: 6px 10px; text-align: left;
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 1;
-  font-size: 9px;
+  font-size: 10px;
   white-space: nowrap;
 }
 .data-table tbody tr {
@@ -1180,7 +1223,7 @@ footer {
 .data-table .ev-badge {
   display: inline-block;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 11px; font-weight: 700;
+  font-size: 12px; font-weight: 700;
   letter-spacing: 0.12em;
   padding: 3px 10px; border-radius: 100px;
   line-height: 1.3;
@@ -1592,11 +1635,11 @@ footer {
       <span class="w-desc" id="w-desc">Laden…</span>
       <div class="wetter-pills">
         <div class="w-pill">💨 <strong><span id="w-wind">—</span></strong> m/s</div>
+        <div class="w-pill">🌬 <strong><span id="w-bft">—</span></strong> Bft</div>
         <div class="w-pill">🌧 <strong><span id="w-prec">—</span></strong> mm</div>
       </div>
     </div>
-    <button class="radar-toggle" onclick="toggleRadar()" id="radar-btn">🌊 Radar ausblenden</button>
-    <div class="radar-frame open" id="radar-frame">
+    <div class="radar-frame" id="radar-frame">
       <iframe src="https://embed.windy.com/embed2.html?lat=53.454&lon=9.989&detailLat=53.454&detailLon=9.989&width=800&height=420&zoom=10&level=surface&overlay=rain&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" loading="lazy"></iframe>
     </div>
 
@@ -1653,7 +1696,10 @@ footer {
       </div>
       <div class="tide-view-actions">
         <span class="tide-legend-inline" id="tide-table-legend-inline" style="display:none">
-          <span class="tide-legend-item"><span class="tide-legend-bar"></span> Ereignis ±2h</span>
+          <span class="tide-legend-item"><span class="tide-legend-bar"></span> NW-Fenster (±Std)</span>
+          <span class="tide-legend-item"><span class="tide-legend-bar" style="background:#8fb3e8;border-color:#4a7bc8"></span> HW-Fenster (±Std)</span>
+          <span class="tide-legend-item"><span class="tide-legend-bar" style="background:rgba(220,38,38,0.25);border-color:#dc2626"></span> Pegel ≥ Grenze</span>
+          <span class="tide-legend-item"><span class="tide-legend-bar" style="background:repeating-linear-gradient(45deg,#86c26a,#86c26a 4px,#b8dfaa 4px,#b8dfaa 8px);opacity:.75"></span> Vorberechnung</span>
           <span class="tide-legend-item"><span class="tide-legend-workhours"></span> 07–17 Uhr</span>
         </span>
         <div class="range-selector" id="tide-mode-selector">
@@ -1707,12 +1753,14 @@ footer {
         </span>
       </div>
       <div class="tide-nav-filter">
-        <span class="tide-filter-label">Wasserstand</span>
+        <span class="tide-filter-label">±&nbsp;Std</span>
+        <input type="number" id="tide-event-hours" class="tide-level-input" value="2" min="0.5" max="6" step="0.5" oninput="setTideEventHours()" title="Zeitfenster um den Scheitelwert in Stunden" />
+        <span class="tide-filter-sep" style="margin:0 12px 0 4px;color:var(--border)">|</span>
+        <span class="tide-filter-label">Pegelgrenze</span>
         <div class="tide-filter-inputs">
-          <input type="number" id="tide-level-min" class="tide-level-input" placeholder="Min cm" step="10" oninput="setTideLevelFilter()" title="Minimum Wasserstand (cm NHN)" />
-          <span class="tide-filter-sep">–</span>
-          <input type="number" id="tide-level-max" class="tide-level-input" placeholder="Max cm" step="10" oninput="setTideLevelFilter()" title="Maximum Wasserstand (cm NHN)" />
-          <span class="tide-filter-unit">cm</span>
+          <input type="number" id="tide-level-min" class="tide-level-input" placeholder="cm" step="10" oninput="setTideLevelFilter()" title="Ab diesem Wasserstand (cm) wird ein roter Balken angezeigt" />
+          <span class="tide-filter-unit">cm NHN</span>
+          <span style="font-family:var(--mono);font-size:10px;color:#dc2626;margin-left:4px">● roter Balken</span>
         </div>
       </div>
     </div>
@@ -1730,6 +1778,41 @@ footer {
 //  PEGEL
 // ══════════════════════════════════════════
 let pegelChart = null;
+
+// Scheitelwertvorhersage als Bereich (I-Beam/Fehlerbalken wie beim BSH).
+// Zeichnet an jedem Scheitelwert eine vertikale Linie mit Kappen, die die
+// Vorhersage-Toleranz darstellt (BSH-typisch ca. ±15 cm).
+const PEAK_TOLERANCE_CM = 15;
+const peakRangePlugin = {
+  id: 'peakRange',
+  afterDatasetsDraw(chart) {
+    const { ctx, scales: { y } } = chart;
+    if (!y) return;
+    chart.data.datasets.forEach((ds, di) => {
+      if (!/Scheitelwert/i.test(ds.label || '')) return;
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden) return;
+      const color = ds.pointBorderColor || ds.backgroundColor || '#995D02';
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      const cap = 5;
+      meta.data.forEach((pt, i) => {
+        const v = ds.data[i];
+        if (v == null || !pt) return;
+        const x   = pt.x;
+        const yHi = y.getPixelForValue(v + PEAK_TOLERANCE_CM);
+        const yLo = y.getPixelForValue(v - PEAK_TOLERANCE_CM);
+        ctx.beginPath();
+        ctx.moveTo(x, yHi); ctx.lineTo(x, yLo);             // vertikale Linie
+        ctx.moveTo(x - cap, yHi); ctx.lineTo(x + cap, yHi); // obere Kappe
+        ctx.moveTo(x - cap, yLo); ctx.lineTo(x + cap, yLo); // untere Kappe
+        ctx.stroke();
+      });
+      ctx.restore();
+    });
+  }
+};
 
 function getChartColors() {
   return {
@@ -1778,6 +1861,45 @@ function chartOptions(extra = {}) {
       ...extra.scales,
     }
   };
+}
+
+// Schützt gegen XSS wenn externe API-Daten in innerHTML eingefügt werden
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ══════════════════════════════════════════
+//  VORBERECHNUNGS-TXT (Jahres-Gezeitentafeln)
+//  Format: eine Zeile pro Ereignis, z.B.:
+//  2026-06-15 03:42 NW 312
+//  2026-06-15 10:18 HW 698
+// ══════════════════════════════════════════
+let precomputedPeaks = [];   // {ts, cm, typ:'H'|'N', source:'precomputed'}
+
+async function loadPrecomputedTides() {
+  try {
+    const res = await fetch('gezeiten.txt');
+    if (!res.ok) return;
+    const text = await res.text();
+    const peaks = [];
+    for (const line of text.split('\n')) {
+      const m = line.trim().match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+(HW|NW)\s+(\d+)/i);
+      if (!m) continue;
+      const ts = new Date(`${m[1]}T${m[2]}:00`);
+      if (isNaN(ts.getTime())) continue;
+      peaks.push({ ts, cm: parseInt(m[4]), typ: m[3].toUpperCase() === 'HW' ? 'H' : 'N', source: 'precomputed' });
+    }
+    precomputedPeaks = peaks;
+    console.log(`[Gezeiten] ${peaks.length} Vorberechnungswerte geladen`);
+  } catch(e) {
+    console.warn('[Gezeiten] gezeiten.txt nicht gefunden oder Fehler:', e.message);
+  }
 }
 
 async function loadPegel() {
@@ -1979,11 +2101,7 @@ function renderPegelFallback() {
 // Mobilithek HTTPS Client-Pull Endpunkt für HPA Brückensperrungen
 // Die URL wird über die gleiche CORS-Proxy-Kette wie BSH abgerufen.
 // Falls der Abruf fehlschlägt → Fallback auf eingebettete XML.
-// Eigener nginx-Proxy (Coolify) — kann Port 8443 erreichen, Cloudflare Worker nicht
-const MOBILITHEK_NGINX_PROXY = 'http://dtbqa08d0xsfnx5db5jfs7kg.37.120.190.92.sslip.io/mobilithek';
-
-const BRUECKEN_DATA_URL = MOBILITHEK_NGINX_PROXY
-  || (window._CF_WORKER_URL ? `${window._CF_WORKER_URL}?target=mobilithek` : 'proxy.php?target=mobilithek');
+const BRUECKEN_DATA_URL = 'api.php?target=mobilithek';
 
 // Bekannte Brücken im Harburger Hafengebiet: sourceIdentification → Anzeigename
 const BRUECKEN_NAMES = {
@@ -2079,8 +2197,8 @@ function renderBrueckenFromDatex(bridges) {
     return `<div class="bruecke">
       <div class="b-dot ${dc}"></div>
       <div class="b-info">
-        <div class="b-name">${b.name}</div>
-        <div class="b-detail">${b.detail}</div>
+        <div class="b-name">${esc(b.name)}</div>
+        <div class="b-detail">${esc(b.detail)}</div>
       </div>
       <div class="b-tag ${tc}">${lbl}</div>
     </div>`;
@@ -2100,11 +2218,7 @@ async function loadBruecken() {
   badge.textContent = 'Laden…'; badge.className = 'badge badge-idle';
   let xmlStr = null;
 
-  // Live-Abruf: zuerst lokales proxy.php, dann öffentliche CORS-Proxies
-  const brueckenUrls = [
-    BRUECKEN_DATA_URL,  // proxy.php?target=mobilithek (direkt, kein Wrapper)
-    ...BSH_PROXIES.slice(1).map(fn => fn('https://mobilithek.info:8443/mobilithek/api/v1.0/subscription/981881661821800448/clientPullService?subscriptionID=981881661821800448')),
-  ];
+  const brueckenUrls = [BRUECKEN_DATA_URL];
   for (const url of brueckenUrls) {
     try {
       const res = await fetch(url, { cache: 'no-store' });
@@ -2159,6 +2273,7 @@ async function loadWetter() {
     const j = await res.json(); const c = j.current;
     document.getElementById('w-temp').textContent = Math.round(c.temperature_2m);
     document.getElementById('w-wind').textContent = c.wind_speed_10m.toFixed(1);
+    document.getElementById('w-bft').textContent  = msToBeaufort(c.wind_speed_10m);
     document.getElementById('w-prec').textContent = c.precipitation.toFixed(1);
     const codeEl = document.getElementById('w-code');
     if (codeEl) codeEl.textContent = c.weather_code;
@@ -2171,12 +2286,13 @@ async function loadWetter() {
   }
 }
 
-let radarOpen = true;
-function toggleRadar() {
-  radarOpen = !radarOpen;
-  document.getElementById('radar-frame').classList.toggle('open', radarOpen);
-  document.getElementById('radar-btn').innerHTML = radarOpen ? '🌊 Radar ausblenden' : '🌊 Windy Radar anzeigen';
-  document.getElementById('radar-frame').classList.toggle('open', radarOpen);
+// Windgeschwindigkeit (m/s) → Beaufort-Skala (0–12)
+function msToBeaufort(ms) {
+  const limits = [0.3, 1.6, 3.4, 5.5, 8.0, 10.8, 13.9, 17.2, 20.8, 24.5, 28.5, 32.7];
+  for (let bft = 0; bft < limits.length; bft++) {
+    if (ms < limits[bft]) return bft;
+  }
+  return 12;
 }
 
 // ══════════════════════════════════════════
@@ -2314,23 +2430,22 @@ function initMap() {
     [53.492, 10.040],  // Richtung Norderelbbrücken
   ], { color:'#4d94ff', weight:3, opacity:0.35 }).bindPopup('Süderelbe').addTo(osmMap);
 
-  // Default key — auto-activate traffic on load
-  const DEFAULT_KEY = 'qGa9XMA5tt54CNmW8Ovn8mDxmVwbfsEi';
-  try {
-    const saved = sessionStorage.getItem('tomtom_key') || DEFAULT_KEY;
-    document.getElementById('tomtom-key-input').value = saved;
-    applyTrafficKey(saved, true);
-  } catch(e) {
-    document.getElementById('tomtom-key-input').value = DEFAULT_KEY;
-    applyTrafficKey(DEFAULT_KEY, true);
-  }
+  // TomTom-Key vom Server holen (config.php liegt nur auf dem Server, nicht im Repo)
+  fetch('api.php?target=config')
+    .then(r => r.ok ? r.json() : {})
+    .then(cfg => {
+      const key = cfg.tomtomKey || '';
+      document.getElementById('tomtom-key-input').value = key;
+      if (key) applyTrafficKey(key, true);
+    })
+    .catch(() => {});
 }
 
 
 function activateTraffic() {
-  const key = document.getElementById('tomtom-key-input').value.trim() || 'qGa9XMA5tt54CNmW8Ovn8mDxmVwbfsEi';
+  const key = document.getElementById('tomtom-key-input').value.trim();
+  if (!key) return;
   applyTrafficKey(key, true);
-  try { sessionStorage.setItem('tomtom_key', key); } catch(e) {}
 }
 
 function applyTrafficKey(key, autoActivate) {
@@ -2626,10 +2741,10 @@ async function loadIncidents() {
       const isFuture = i._isFuture;
       const cat     = INCIDENT_CATEGORY[p.iconCategory ?? 0] || INCIDENT_CATEGORY[0];
       const [label, sev, icon] = cat;
-      const road    = (p.roadNumbers && p.roadNumbers[0])
-                    || p.from || p.to || 'Unbenannte Straße';
-      const route   = [p.from, p.to].filter(Boolean).join(' → ');
-      const desc    = p.events && p.events[0] && p.events[0].description;
+      const road    = esc((p.roadNumbers && p.roadNumbers[0])
+                    || p.from || p.to || 'Unbenannte Straße');
+      const route   = [p.from, p.to].filter(Boolean).map(esc).join(' → ');
+      const desc    = p.events && p.events[0] && esc(p.events[0].description);
       const delayMin = p.delay ? Math.round(p.delay / 60) : 0;
       const lenKm    = p.length ? (p.length / 1000).toFixed(1) : null;
 
@@ -4173,24 +4288,10 @@ function parseBSH() {
 //  3. Last resort: statische 2026-Vorausberechnung (BSH_RAW im Code)
 // ══════════════════════════════════════════
 
-// --- BSH Konfiguration ---
-// BSH hat API auf OGC API umgestellt (gdi.bsh.de/ldproxy)
+// Alle API-Aufrufe laufen über das lokale api.php (same-origin).
+// Kein CORS-Problem, keine externen Proxies, kein Datenleck.
 const BSH_TARGET_URL = 'https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast/collections/waterlevelforecastdata/items/hamburg_st-pauli?f=json';
-// Proxy-Kette: zuerst lokaler nginx-Proxy (kein CORS-Problem), dann öffentliche Fallbacks.
-// Lokaler Proxy erfordert die nginx-Location-Blöcke aus dem Repo (nginx-proxy.conf).
-// ↓ Cloudflare Worker URL hier eintragen (z.B. https://hafen-proxy.DEIN-NAME.workers.dev)
-window._CF_WORKER_URL = 'https://hafen-dashboard.nico29-vogel.workers.dev';
-
-const BSH_PROXIES = [
-  ...(window._CF_WORKER_URL ? [_ => `${window._CF_WORKER_URL}?target=bsh`] : []),
-  _ => `proxy.php?target=bsh`,
-  u => `https://corsproxy.io/?apikey=bf339ca7&url=${encodeURIComponent(u)}`,
-  u => `https://corsproxy.org/?${encodeURIComponent(u)}`,
-  u => `https://cors.eu.org/${u}`,
-  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-  u => `https://api.cors.lol/?url=${encodeURIComponent(u)}`,
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-];
+const BSH_PROXIES = [_ => 'api.php?target=bsh'];
 
 // --- PEGELONLINE Konfiguration (Fallback) ---
 const STPAULI_UUID = 'b97db2fe-82ff-4bde-a73b-f087a3b0f9c4';  // Harburg
@@ -4469,20 +4570,24 @@ function renderGezeiten() {
   // Scheitelwert-Tabelle
   //   Live (PEGELONLINE): erkannte HW/NW der letzten 7 Tage — neueste zuerst
   //   Fallback (statische BSH 2026): alle Events der nächsten 14 Tage
+  // Chronologisch aufsteigend — früheste oben
   const eventsForTable = useLive
-    ? [...all].sort((a, b) => b.dt - a.dt).slice(0, 40)
+    ? [...all].sort((a, b) => b.dt - a.dt).slice(0, 40).reverse()
     : all.filter(e => { const d=(e.dt-todayRef)/86400000; return d>=0&&d<14; });
 
   const bshTbody = document.getElementById('bsh-tbody');
   if (bshTbody) {
     bshTbody.innerHTML = eventsForTable.map(e => {
       const hw = e.typ === 'H';
-      // Für Live-Daten: forecast-String direkt benutzen (z.B. "-0,5 m")
-      // Für Fallback: selbst berechnen
-      const abwStr = useLive && e.forecast
-        ? e.forecast
-        : ((hw ? e.heightPNP - MHW : e.heightPNP - MNW) >= 0 ? '+' : '')
-          + (hw ? e.heightPNP - MHW : e.heightPNP - MNW).toFixed(2) + ' m';
+      // Abweichung immer auf eine Nachkommastelle gerundet.
+      // Live-Daten liefern einen String (z.B. "-0,17 m") → Zahl parsen.
+      let abwVal = null;
+      if (useLive && e.forecast) {
+        const n = parseFloat(String(e.forecast).replace(',', '.'));
+        if (!isNaN(n)) abwVal = n;
+      }
+      if (abwVal == null) abwVal = hw ? e.heightPNP - MHW : e.heightPNP - MNW;
+      const abwStr = (abwVal >= 0 ? '+' : '') + abwVal.toFixed(1) + ' m';
       const dateStr = `${String(e.day).padStart(2,'0')}.${String(e.month).padStart(2,'0')}.`;
       const timeStr = `${String(e.hour).padStart(2,'0')}:${String(e.min).padStart(2,'0')}`;
       const cls = hw ? 'row-hw' : 'row-nw';
@@ -4542,9 +4647,9 @@ function renderGezeiten() {
     const toCmNHN = v => v == null ? null : Math.round(v + PNP * 100);
 
     // BSH-Farbpalette (wie auf der BSH-Seite)
-    const BSH_RED    = '#E10105';   // Messwert/Beobachtung
-    const BSH_ORANGE = '#DB8503';   // Kurvenvorhersage (nur BSH)
-    const BSH_GREEN  = '#3DDF02';   // Gezeitenvorausberechnung/astro (nur BSH)
+    const BSH_RED    = '#E10105';   // Kurvenvorhersage
+    const BSH_BLACK  = '#1a1a1a';   // Messwert/Beobachtung (Rohdaten)
+    const BSH_GREEN  = '#16a34a';   // Gezeitenvorausberechnung/astro (gestrichelt)
     const BSH_MHW    = '#A0CBE8';
     const BSH_MNW    = '#FF9D9A';
     const BSH_BROWN  = '#995D02';
@@ -4823,10 +4928,11 @@ function renderGezeiten() {
     const curveAsNHN = hasCurveData && !bshIsInterpolated;
     if (isBSH && sampledAstro) {
       datasets.push({
-        label: 'Gezeitenvorausberechnung (astro)',
+        label: 'Gezeitenvorausberechnung',
         data: curveAsNHN ? sampledAstro : sampledAstro.map(toCmNHN),
         borderColor: BSH_GREEN,
-        borderWidth: 1.6,
+        borderWidth: 1.8,
+        borderDash: [6, 4],   // gestrichelt
         pointRadius: 0, pointHoverRadius: 4,
         fill: false, tension: 0.3,
         order: 3,
@@ -4834,20 +4940,20 @@ function renderGezeiten() {
     }
     if (isBSH && sampledFc) {
       datasets.push({
-        label: 'Kurvenvorhersage (BSH)',
+        label: 'Kurvenvorhersage',
         data: curveAsNHN ? sampledFc : sampledFc.map(toCmNHN),
-        borderColor: BSH_ORANGE,
-        borderWidth: 1.8,
+        borderColor: BSH_RED,
+        borderWidth: 2,
         pointRadius: 0, pointHoverRadius: 4,
         fill: false, tension: 0.3, spanGaps: true,
         order: 2,
       });
     }
-    // Hauptlinie
+    // Hauptlinie (Beobachtung/Messwert)
     const lineLabel = bshIsInterpolated
-      ? 'Gezeitenvorhersage (BSH)'
-      : (isBSH ? 'Wasserstand (BSH Live)' : 'Messwert (PEGELONLINE)');
-    const lineColor = bshIsInterpolated ? BSH_ORANGE : BSH_RED;
+      ? 'Kurvenvorhersage'
+      : (isBSH ? 'Beobachtung (Rohdaten)' : 'Messwert (PEGELONLINE)');
+    const lineColor = bshIsInterpolated ? BSH_RED : BSH_BLACK;
     datasets.push({
       label: lineLabel,
       data: curveAsNHN ? sampled.map(m => m.cm) : sampled.map(m => toCmNHN(m.cm)),
@@ -4858,12 +4964,12 @@ function renderGezeiten() {
       order: 1,
     });
     datasets.push({
-      label: isBSH ? 'Offizielle Scheitelwerte (HW/NW)' : 'Erkannte Scheitelwerte (HW/NW)',
+      label: 'Scheitelwertvorhersage (Bereich)',
       data: scheitelData,
       borderColor: 'transparent',
       backgroundColor: BSH_BROWN,
       pointStyle: 'rectRot',
-      pointRadius: 5, pointHoverRadius: 7,
+      pointRadius: 3, pointHoverRadius: 6,
       pointBorderColor: BSH_BROWN,
       pointBorderWidth: 1,
       showLine: false,
@@ -4874,7 +4980,7 @@ function renderGezeiten() {
       type: 'line',
       data: { labels, datasets },
       options: baseOpts,
-      plugins: [workingHoursPlugin, dayBoundaryPlugin],
+      plugins: [workingHoursPlugin, dayBoundaryPlugin, peakRangePlugin],
     });
   } else {
     // Fallback: Scheitelwerte-Chart (7 Tage)
@@ -4980,6 +5086,7 @@ function refreshAll() {
   document.getElementById('footer-ts').textContent =
     `Zuletzt aktualisiert: ${new Date().toLocaleString('de-DE')}`;
 
+  loadPrecomputedTides();
   loadPegel();
   loadBruecken();
   loadWetter();
@@ -5075,6 +5182,12 @@ function collectTideBigSeries() {
       ts: new Date(d.timestamp), cm: toN(d.value), typ: d.event === 'HW' ? 'H' : 'N'
     }));
     result.peaks = allPeaks;
+    // Vorberechnungswerte auffüllen wo keine Live-Daten vorliegen
+    if (precomputedPeaks.length) {
+      const liveMax = allPeaks.length ? Math.max(...allPeaks.map(p => p.ts.getTime())) : 0;
+      const extra = precomputedPeaks.filter(p => p.ts.getTime() > liveMax);
+      result.peaks = [...allPeaks, ...extra];
+    }
 
     // Kurvendaten aus curve_forecast (Werte können Strings sein!)
     if (src.curve_forecast?.data) {
@@ -5114,6 +5227,11 @@ function collectTideBigSeries() {
     // PEGELONLINE-Fallback: nur Messwerte + detektierte Peaks
     src.measurements.forEach(m => result.measure.push({ts: m.ts, cm: m.cm}));
     src.peaks.forEach(p => result.peaks.push({ts: p.ts, cm: p.cm, typ: p.typ}));
+    if (precomputedPeaks.length) {
+      const liveMax = result.peaks.length ? Math.max(...result.peaks.map(p => p.ts.getTime())) : 0;
+      const extra = precomputedPeaks.filter(p => p.ts.getTime() > liveMax);
+      result.peaks.push(...extra);
+    }
   }
   return result;
 }
@@ -5299,18 +5417,18 @@ function renderTideBig() {
     { label: 'Mittleres Niedrigwasser (MNW)', data: mnwLine, borderColor: '#FF9D9A', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
   ];
   if (astroCm.some(v => v != null)) {
-    datasets.push({ label: 'Astronomische Gezeitenvorausberechnung', data: astroCm, borderColor: '#3DDF02', borderWidth: 1.6, pointRadius:0, fill:false, tension:0.3, order:3 });
+    datasets.push({ label: 'Gezeitenvorausberechnung', data: astroCm, borderColor: '#16a34a', borderWidth: 1.8, borderDash:[6,4], pointRadius:0, fill:false, tension:0.3, order:3 });
   }
   if (forecastCm.some(v => v != null)) {
-    datasets.push({ label: 'Kurvenvorhersage (BSH)', data: forecastCm, borderColor: '#DB8503', borderWidth: 1.8, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
+    datasets.push({ label: 'Kurvenvorhersage', data: forecastCm, borderColor: '#E10105', borderWidth: 2, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
   }
   if (measureCm.some(v => v != null)) {
-    datasets.push({ label: 'Messwert Harburg', data: measureCm, borderColor: '#E10105', borderWidth: 2, pointRadius:0, fill:false, tension:0.25, spanGaps:false, order:1 });
+    datasets.push({ label: 'Beobachtung (Rohdaten)', data: measureCm, borderColor: '#1a1a1a', borderWidth: 2, pointRadius:0, fill:false, tension:0.25, spanGaps:false, order:1 });
   }
   datasets.push({
-    label: 'Scheitelwerte (HW/NW)', data: peakData,
+    label: 'Scheitelwertvorhersage (Bereich)', data: peakData,
     borderColor: 'transparent', backgroundColor: '#995D02', pointStyle: 'rectRot',
-    pointRadius: 5, pointHoverRadius: 7, pointBorderColor: '#995D02', pointBorderWidth: 1,
+    pointRadius: 3, pointHoverRadius: 6, pointBorderColor: '#995D02', pointBorderWidth: 1,
     showLine: false, order: 0
   });
 
@@ -5341,7 +5459,7 @@ function renderTideBig() {
     type: 'line',
     data: { labels, datasets },
     options: opts,
-    plugins: [workingHoursPlugin, overlayPlugin]
+    plugins: [workingHoursPlugin, overlayPlugin, peakRangePlugin]
   });
 
   // Zeitbereich-Info aktualisieren
@@ -5374,14 +5492,18 @@ function updateTideRangeLabels() {
 // ══════════════════════════════════════════
 let tideMode = 'chart';   // 'chart' | 'table'
 let tideHwNw = 'N';       // 'H' | 'N'
-let tideLevelMin = null;  // cm — untere Schwelle (null = kein Filter)
-let tideLevelMax = null;  // cm — obere Schwelle (null = kein Filter)
+let tideLevelMin = null;  // cm — Pegelgrenzwert für roten Balken (null = kein)
+let tideEventHours = 2;   // ±Stunden um den Peak (Standard: 2h)
 
 function setTideLevelFilter() {
   const minEl = document.getElementById('tide-level-min');
-  const maxEl = document.getElementById('tide-level-max');
   tideLevelMin = minEl.value !== '' ? parseInt(minEl.value) : null;
-  tideLevelMax = maxEl.value !== '' ? parseInt(maxEl.value) : null;
+  renderTideTable();
+}
+
+function setTideEventHours() {
+  const el = document.getElementById('tide-event-hours');
+  tideEventHours = el.value !== '' ? Math.max(0.5, Math.min(6, parseFloat(el.value))) : 2;
   renderTideTable();
 }
 
@@ -5468,7 +5590,8 @@ function renderTideTable() {
   html += '<div class="tide-grid-header">';
   html += '<div class="th">Datum</div>';
   html += '<div class="th"></div>';
-  html += '<div class="th" style="font-size:9px">' + (tideHwNw === 'H' ? 'HW' : 'NW') + ' &nbsp; -2 Std &nbsp; +2 Std</div>';
+  const hStr = tideEventHours % 1 === 0 ? tideEventHours : tideEventHours.toFixed(1);
+  html += `<div class="th" style="font-size:9px">${tideHwNw === 'H' ? 'HW' : 'NW'} &nbsp; −${hStr}h &nbsp; +${hStr}h</div>`;
   html += '<div class="tide-grid-timeheader">';
   for (let q = 0; q < 96; q++) {
     const h = Math.floor(q / 4), m = (q % 4) * 15;
@@ -5494,7 +5617,9 @@ function renderTideTable() {
       const p = peaks[r];
       const isFirst = r === 0;
       // Datum nur in der ersten Zeile des Tages
-      html += `<div class="tide-row-date${isWeekend?' weekend':''}">${isFirst ? fmtDate(day) : ''}</div>`;
+      const isPrecomp = peaks.length > 0 && peaks[0].source === 'precomputed';
+      const precompCls = isPrecomp ? ' precomputed' : '';
+      html += `<div class="tide-row-date${isWeekend?' weekend':''}${precompCls}">${isFirst ? fmtDate(day) + (isPrecomp ? ' ⓘ' : '') : ''}</div>`;
       // "früh"/"spät"-Label wenn zwei Peaks am Tag
       let label = '';
       if (peaks.length === 2) label = r === 0 ? 'früh' : 'spät';
@@ -5523,26 +5648,45 @@ function renderTideTable() {
         if (isWork) cls.push('workhours');
         html += `<div class="${cls.join(' ')}"></div>`;
       }
-      // Balken: ±2h um den Peak. Position in % der 96 Spalten.
+      // Ereignis-Balken: ±tideEventHours um den Peak
       if (p) {
-        const levelOk = (tideLevelMin == null || p.cm >= tideLevelMin)
-                     && (tideLevelMax == null || p.cm <= tideLevelMax);
-        if (levelOk) {
-          const peakDay = new Date(p.ts.getFullYear(), p.ts.getMonth(), p.ts.getDate());
-          // Start/End in Minuten ab 00:00 des Peak-Tages (kann negativ oder >1440 sein → ans Tagesende clampen)
-          const startMin = ((p.ts.getTime() - peakDay.getTime()) / 60000) - 120;  // -2h
-          const endMin   = ((p.ts.getTime() - peakDay.getTime()) / 60000) + 120;  // +2h
-          const s0 = Math.max(0, startMin);
-          const e0 = Math.min(1440, endMin);
-          if (s0 < 1440 && e0 > 0) {
-            const leftPct  = (s0 / 1440) * 100;
-            const widthPct = ((e0 - s0) / 1440) * 100;
-            const barCls = tideHwNw === 'H' ? 'tide-event-bar hw' : 'tide-event-bar';
-            html += `<div class="${barCls}" style="left:${leftPct}%;width:${widthPct}%"></div>`;
+        const peakDay = new Date(p.ts.getFullYear(), p.ts.getMonth(), p.ts.getDate());
+        const peakMin = (p.ts.getTime() - peakDay.getTime()) / 60000;
+        const halfW   = tideEventHours * 60;
+        const startMin = peakMin - halfW;
+        const endMin   = peakMin + halfW;
+        const s0 = Math.max(0, startMin);
+        const e0 = Math.min(1440, endMin);
+        if (s0 < 1440 && e0 > 0) {
+          const leftPct  = (s0 / 1440) * 100;
+          const widthPct = ((e0 - s0) / 1440) * 100;
+          const preComp  = p.source === 'precomputed' ? ' precomputed' : '';
+          const barCls   = tideHwNw === 'H' ? `tide-event-bar hw${preComp}` : `tide-event-bar${preComp}`;
+          const label    = `${p.cm != null ? p.cm + ' cm' : ''}${preComp ? ' · Vorberechnung' : ''}`;
+          html += `<div class="${barCls}" style="left:${leftPct}%;width:${widthPct}%" title="${label}"></div>`;
+        }
+        // Roter Pegelgrenzwert-Balken: zeigt wann der Wasserstand den Grenzwert erreicht/überschreitet
+        if (tideLevelMin != null && p.cm != null && p.cm >= tideLevelMin) {
+          // Schätze Zeitfenster wo Pegel >= tideLevelMin (cosinus-Annäherung)
+          // Für NW: Pegel ist minimal, darunter liegt er selten. Für HW: Fläche über dem Grenzwert.
+          const ratio = (tideHwNw === 'H')
+            ? Math.acos(1 - 2 * (p.cm - tideLevelMin) / Math.max(1, p.cm)) / Math.PI
+            : Math.acos(1 - 2 * (tideLevelMin - p.cm) / Math.max(1, tideLevelMin)) / Math.PI;
+          const threshHalfMin = Math.min(halfW, isNaN(ratio) ? halfW : ratio * halfW * 2);
+          const ls = peakMin - threshHalfMin;
+          const le = peakMin + threshHalfMin;
+          const ls0 = Math.max(0, ls);
+          const le0 = Math.min(1440, le);
+          if (ls0 < 1440 && le0 > 0) {
+            const lLeftPct  = (ls0 / 1440) * 100;
+            const lWidthPct = ((le0 - ls0) / 1440) * 100;
+            const durationMin = Math.round(le0 - ls0);
+            const durationStr = durationMin >= 60
+              ? `${Math.floor(durationMin/60)}h ${durationMin%60}min`
+              : `${durationMin} min`;
+            html += `<div class="tide-level-bar" style="left:${lLeftPct}%;width:${lWidthPct}%" title="Pegel ≥ ${tideLevelMin} cm für ca. ${durationStr}"></div>`;
           }
         }
-        // Falls der Balken in den nächsten/vorigen Tag reicht: das regeln wir im FARGE-Plan auch via overflow
-        // (spart Komplexität — Hauptereignis liegt fast immer im Tag)
       }
       html += '</div>';  // /tide-row-grid
     }

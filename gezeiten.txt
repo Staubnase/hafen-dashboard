@@ -1,0 +1,15 @@
+# Gezeitenvorausberechnung Pegel Hamburg-Harburg
+# Format: YYYY-MM-DD HH:MM  HW|NW  cm
+# Quelle: BSH Gezeitentafel / eigene Berechnung
+# Diese Datei wird als Fallback genutzt wenn keine Live-API-Daten vorliegen.
+# Zeilen die mit # beginnen werden ignoriert.
+#
+# Beispieleinträge (bitte mit echten Jahreswerten ersetzen):
+2026-06-19 01:15 NW 318
+2026-06-19 07:42 HW 712
+2026-06-19 13:28 NW 305
+2026-06-19 20:05 HW 698
+2026-06-20 02:01 NW 322
+2026-06-20 08:35 HW 705
+2026-06-20 14:18 NW 311
+2026-06-20 20:55 HW 691
