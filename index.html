@@ -4800,6 +4800,8 @@ function renderGezeiten() {
     const mhwLine = new Array(sampled.length).fill(mhwCm + Math.round(PNP * 100));
     const mnwLine = new Array(sampled.length).fill(mnwCm + Math.round(PNP * 100));
 
+    const mhwNHN = mhwCm + Math.round(PNP * 100);
+    const mnwNHN = mnwCm + Math.round(PNP * 100);
     const baseOpts = chartOptions({
       yTicks: { callback: v => v + ' cm', stepSize: 100 },
       tooltip: {
@@ -4808,7 +4810,15 @@ function renderGezeiten() {
           label: ctx => {
             if (ctx.parsed.y == null) return null;
             if (ctx.dataset.label?.startsWith('Mittleres')) return null;
-            return ` ${ctx.dataset.label}: ${ctx.parsed.y} cm NHN`;
+            const cmNHN = ctx.parsed.y;
+            if (ctx.dataset.label?.startsWith('Scheitelwert')) {
+              const midNHN = (mhwNHN + mnwNHN) / 2;
+              const isHW   = cmNHN >= midNHN;
+              const abwM   = (cmNHN - (isHW ? mhwNHN : mnwNHN)) / 100;
+              const sign   = abwM >= 0 ? '+' : '';
+              return ` ${isHW ? '▲ HW' : '▼ NW'}: ${(cmNHN / 100).toFixed(2)} m NHN  (Abw. vom ${isHW ? 'MHW' : 'MNW'}: ${sign}${abwM.toFixed(1)} m)`;
+            }
+            return ` ${ctx.dataset.label}: ${(cmNHN / 100).toFixed(2)} m NHN`;
           },
         }
       }
@@ -5466,7 +5476,19 @@ function renderTideBig() {
         label: ctx => {
           if (ctx.parsed.y == null) return null;
           if (ctx.dataset.label?.startsWith('Mittleres')) return null;
-          return ` ${ctx.dataset.label}: ${ctx.parsed.y} cm NHN`;
+          const cmNHN = ctx.parsed.y;
+          if (ctx.dataset.label?.startsWith('Scheitelwert')) {
+            const mhwNHN = Math.round(s.mhwCm + s.PNP * 100);
+            const mnwNHN = Math.round(s.mnwCm + s.PNP * 100);
+            const midNHN = (mhwNHN + mnwNHN) / 2;
+            const isHW   = cmNHN >= midNHN;
+            const refNHN = isHW ? mhwNHN : mnwNHN;
+            const abwM   = (cmNHN - refNHN) / 100;
+            const sign   = abwM >= 0 ? '+' : '';
+            const ref    = isHW ? 'MHW' : 'MNW';
+            return ` ${isHW ? '▲ HW' : '▼ NW'}: ${(cmNHN / 100).toFixed(2)} m NHN  (Abw. vom ${ref}: ${sign}${abwM.toFixed(1)} m)`;
+          }
+          return ` ${ctx.dataset.label}: ${(cmNHN / 100).toFixed(2)} m NHN`;
         }
       }
     }
