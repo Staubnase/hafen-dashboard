@@ -9,7 +9,7 @@
   script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
   font-src https://fonts.gstatic.com;
-  img-src 'self' data: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://api.tomtom.com https://windy.com https://*.windy.com;
+  img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://api.tomtom.com https://windy.com https://*.windy.com;
   connect-src 'self' https://pegelonline.wsv.de https://api.open-meteo.com https://api.tomtom.com https://gdi.bsh.de https://api.allorigins.win https://api.codetabs.com https://corsproxy.io;
   frame-src https://embed.windy.com;
   object-src 'none';
@@ -4761,6 +4761,34 @@ function renderGezeiten() {
       const step = Math.max(1, Math.floor(meas.length / 600));
       sampled = meas.filter((_, i) => i % step === 0);
       peaksSrc = (bshApiData.peaks || []).filter(p => inWindow(p.ts.getTime()));
+
+      // Gezeitenvorausberechnung aus precomputedPeaks (gezeiten.txt) per Sinus-Interpolation
+      if (precomputedPeaks.length) {
+        const astroInterp = [];
+        const sorted = [...precomputedPeaks].sort((a, b) => a.ts - b.ts);
+        for (let t = windowStart; t <= windowEnd; t += 10 * 60000) {
+          let prev = null, next = null;
+          for (const p of sorted) {
+            if (p.ts.getTime() <= t) prev = p;
+            else { next = p; break; }
+          }
+          let cm;
+          if (prev && next) {
+            const frac = (t - prev.ts.getTime()) / (next.ts.getTime() - prev.ts.getTime());
+            cm = prev.cm + (next.cm - prev.cm) * (1 - Math.cos(Math.PI * frac)) / 2;
+          } else if (prev) { cm = prev.cm; }
+          else if (next)   { cm = next.cm; }
+          else continue;
+          astroInterp.push({ ts: new Date(t), cm });
+        }
+        if (astroInterp.length) {
+          // cm PNP → cm NHN für Chart-Achse
+          const step2 = Math.max(1, Math.floor(astroInterp.length / 600));
+          sampledAstro = astroInterp
+            .filter((_, i) => i % step2 === 0)
+            .map(p => toCmNHN(p.cm));
+        }
+      }
     }
 
     // Labels: dd.mm HH:MM
@@ -4951,10 +4979,10 @@ function renderGezeiten() {
     // Wenn hasCurveData: sampledAstro/sampledFc/sampled.cm sind bereits cm NHN (kein toCmNHN nötig)
     // Wenn bshIsInterpolated: sampled.cm ist cm PNP → toCmNHN anwenden
     const curveAsNHN = hasCurveData && !bshIsInterpolated;
-    if (isBSH && sampledAstro) {
+    if (sampledAstro) {
       datasets.push({
         label: 'Gezeitenvorausberechnung',
-        data: curveAsNHN ? sampledAstro : sampledAstro.map(toCmNHN),
+        data: curveAsNHN ? sampledAstro : sampledAstro,  // bereits NHN bei PEGELONLINE-Pfad
         borderColor: BSH_GREEN,
         borderWidth: 1.8,
         borderDash: [6, 4],   // gestrichelt
@@ -5249,10 +5277,12 @@ function collectTideBigSeries() {
     if (src.MNW) result.mnwCm = toN(src.MNW) ?? result.mnwCm;
     if (src['PNP (unter NHN)']) result.PNP = toN(src['PNP (unter NHN)']) / 100;
   } else if (src.peaks && src.measurements) {
-    // PEGELONLINE-Fallback: nur Messwerte + detektierte Peaks
+    // PEGELONLINE-Fallback: Messwerte + detektierte Peaks
     src.measurements.forEach(m => result.measure.push({ts: m.ts, cm: m.cm}));
     src.peaks.forEach(p => result.peaks.push({ts: p.ts, cm: p.cm, typ: p.typ}));
+    // Gezeitenvorausberechnung (grün gestrichelt) aus precomputed Peaks
     if (precomputedPeaks.length) {
+      _buildSinusInterp(precomputedPeaks, result);  // füllt result.astro
       const liveMax = result.peaks.length ? Math.max(...result.peaks.map(p => p.ts.getTime())) : 0;
       const extra = precomputedPeaks.filter(p => p.ts.getTime() > liveMax);
       result.peaks.push(...extra);
