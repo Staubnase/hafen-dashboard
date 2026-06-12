@@ -322,12 +322,15 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 .tide-grid-header > .th {
   background: var(--bg2);
   border-bottom: 1px solid var(--border2);
-  padding: 4px 8px;
-  font-weight: 600; font-size: 10px;
+  padding: 6px 8px;
+  font-weight: 600; font-size: 11px;
   color: var(--text-muted);
   position: sticky; top: 0;
   z-index: 5;
 }
+.tide-grid-header > .th:nth-child(1) { position: sticky; top: 0; left: 0; z-index: 10; }
+.tide-grid-header > .th:nth-child(2) { position: sticky; top: 0; left: 120px; z-index: 10; }
+.tide-grid-header > .th:nth-child(3) { position: sticky; top: 0; left: 156px; z-index: 10; }
 /* Zeitachse: 96 Viertelstunden × 00 bis 24 Uhr → inneres Grid */
 .tide-grid-timeheader {
   display: grid;
@@ -355,30 +358,40 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 .tide-row-date, .tide-row-label, .tide-row-times, .tide-row-grid {
   padding: 2px 6px;
   border-bottom: 1px solid var(--border);
-  min-height: 18px;
+  min-height: 28px;
   display: flex; align-items: center;
 }
 .tide-row-date {
-  font-weight: 600; color: var(--text);
+  font-weight: 600; font-size: 12px; color: var(--text);
   border-right: 1px solid var(--border);
   background: var(--surface);
   white-space: nowrap;
+  position: sticky; left: 0; z-index: 3;
 }
 .tide-row-date.weekend { background: #f5f3ed; }
+.tide-row-date.precomputed { color: var(--text-muted); font-style: italic; }
+.tide-row-date.precomputed::after {
+  content: ' Vorber.';
+  font-size: 8px; font-style: normal; opacity: 0.6; margin-left: 2px;
+}
 .tide-row-label {
   color: var(--text-dim); text-transform: uppercase;
-  letter-spacing: 0.05em; font-size: 9px;
+  letter-spacing: 0.05em; font-size: 10px;
   border-right: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; left: 120px; z-index: 3;
 }
 .tide-row-times {
-  font-size: 10px;
+  font-size: 11px;
   gap: 8px;
   border-right: 1px solid var(--border);
   white-space: nowrap;
+  background: var(--surface);
+  position: sticky; left: 156px; z-index: 3;
 }
-.tide-row-times .t-main { font-weight: 600; color: var(--text); min-width: 42px; }
+.tide-row-times .t-main { font-weight: 700; color: var(--text); min-width: 46px; font-size: 12px; }
 .tide-row-times .t-pre,
-.tide-row-times .t-post { color: var(--text-dim); min-width: 42px; }
+.tide-row-times .t-post { color: var(--text-dim); min-width: 46px; }
 
 /* Zeit-Raster-Zeile: selbes 96-Spalten-Grid wie der Header */
 .tide-row-grid {
@@ -390,25 +403,51 @@ body.view-tide .storm-warning.hidden { display: none; }  /* sicherstellen dass h
 }
 .tide-grid-cell {
   border-right: 1px solid rgba(0,0,0,.04);
-  min-height: 22px;
+  min-height: 28px;
 }
 .tide-grid-cell.major { border-right: 1px solid var(--border); }
 .tide-grid-cell.workhours {
   background: rgba(160, 203, 232, 0.18);
 }
-/* Der grüne Ereignis-Balken: absolute innerhalb der Zeile */
+/* Ereignis-Balken: absolut innerhalb der Zeile */
 .tide-event-bar {
   position: absolute;
-  top: 3px; bottom: 3px;
+  top: 4px; bottom: 4px;
   background: #86c26a;
-  border: 1px solid #5a9a42;
-  border-radius: 2px;
+  border: 1.5px solid #5a9a42;
+  border-radius: 3px;
   pointer-events: none;
   z-index: 2;
+  display: flex; align-items: center;
+  overflow: hidden;
 }
 .tide-event-bar.hw {
   background: #8fb3e8;
   border-color: #4a7bc8;
+}
+/* Roter Pegelgrenzwert-Balken */
+.tide-level-bar {
+  position: absolute;
+  top: 4px; bottom: 4px;
+  background: rgba(220, 38, 38, 0.25);
+  border: 1.5px solid #dc2626;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 3;
+}
+/* Vorberechnung (nicht Live) */
+.tide-row-date.precomputed { color: var(--text-muted); font-style: italic; }
+.tide-event-bar.precomputed {
+  background: repeating-linear-gradient(
+    45deg, #86c26a, #86c26a 4px, #b8dfaa 4px, #b8dfaa 8px
+  );
+  opacity: 0.75;
+}
+.tide-event-bar.hw.precomputed {
+  background: repeating-linear-gradient(
+    45deg, #8fb3e8, #8fb3e8 4px, #bdd4f2 4px, #bdd4f2 8px
+  );
+  opacity: 0.75;
 }
 .tide-scrub-row {
   display: flex; gap: 12px; align-items: center;
@@ -5377,14 +5416,18 @@ function updateTideRangeLabels() {
 // ══════════════════════════════════════════
 let tideMode = 'chart';   // 'chart' | 'table'
 let tideHwNw = 'N';       // 'H' | 'N'
-let tideLevelMin = null;  // cm — untere Schwelle (null = kein Filter)
-let tideLevelMax = null;  // cm — obere Schwelle (null = kein Filter)
+let tideLevelMin = null;  // cm — Pegelgrenzwert für roten Balken (null = kein)
+let tideEventHours = 2;   // ±Stunden um den Peak (Standard: 2h)
 
 function setTideLevelFilter() {
   const minEl = document.getElementById('tide-level-min');
-  const maxEl = document.getElementById('tide-level-max');
   tideLevelMin = minEl.value !== '' ? parseInt(minEl.value) : null;
-  tideLevelMax = maxEl.value !== '' ? parseInt(maxEl.value) : null;
+  renderTideTable();
+}
+
+function setTideEventHours() {
+  const el = document.getElementById('tide-event-hours');
+  tideEventHours = el.value !== '' ? Math.max(0.5, Math.min(6, parseFloat(el.value))) : 2;
   renderTideTable();
 }
 
@@ -5471,7 +5514,8 @@ function renderTideTable() {
   html += '<div class="tide-grid-header">';
   html += '<div class="th">Datum</div>';
   html += '<div class="th"></div>';
-  html += '<div class="th" style="font-size:9px">' + (tideHwNw === 'H' ? 'HW' : 'NW') + ' &nbsp; -2 Std &nbsp; +2 Std</div>';
+  const hStr = tideEventHours % 1 === 0 ? tideEventHours : tideEventHours.toFixed(1);
+  html += `<div class="th" style="font-size:9px">${tideHwNw === 'H' ? 'HW' : 'NW'} &nbsp; −${hStr}h &nbsp; +${hStr}h</div>`;
   html += '<div class="tide-grid-timeheader">';
   for (let q = 0; q < 96; q++) {
     const h = Math.floor(q / 4), m = (q % 4) * 15;
@@ -5526,26 +5570,45 @@ function renderTideTable() {
         if (isWork) cls.push('workhours');
         html += `<div class="${cls.join(' ')}"></div>`;
       }
-      // Balken: ±2h um den Peak. Position in % der 96 Spalten.
+      // Ereignis-Balken: ±tideEventHours um den Peak
       if (p) {
-        const levelOk = (tideLevelMin == null || p.cm >= tideLevelMin)
-                     && (tideLevelMax == null || p.cm <= tideLevelMax);
-        if (levelOk) {
-          const peakDay = new Date(p.ts.getFullYear(), p.ts.getMonth(), p.ts.getDate());
-          // Start/End in Minuten ab 00:00 des Peak-Tages (kann negativ oder >1440 sein → ans Tagesende clampen)
-          const startMin = ((p.ts.getTime() - peakDay.getTime()) / 60000) - 120;  // -2h
-          const endMin   = ((p.ts.getTime() - peakDay.getTime()) / 60000) + 120;  // +2h
-          const s0 = Math.max(0, startMin);
-          const e0 = Math.min(1440, endMin);
-          if (s0 < 1440 && e0 > 0) {
-            const leftPct  = (s0 / 1440) * 100;
-            const widthPct = ((e0 - s0) / 1440) * 100;
-            const barCls = tideHwNw === 'H' ? 'tide-event-bar hw' : 'tide-event-bar';
-            html += `<div class="${barCls}" style="left:${leftPct}%;width:${widthPct}%"></div>`;
+        const peakDay = new Date(p.ts.getFullYear(), p.ts.getMonth(), p.ts.getDate());
+        const peakMin = (p.ts.getTime() - peakDay.getTime()) / 60000;
+        const halfW   = tideEventHours * 60;
+        const startMin = peakMin - halfW;
+        const endMin   = peakMin + halfW;
+        const s0 = Math.max(0, startMin);
+        const e0 = Math.min(1440, endMin);
+        if (s0 < 1440 && e0 > 0) {
+          const leftPct  = (s0 / 1440) * 100;
+          const widthPct = ((e0 - s0) / 1440) * 100;
+          const preComp  = p.source === 'precomputed' ? ' precomputed' : '';
+          const barCls   = tideHwNw === 'H' ? `tide-event-bar hw${preComp}` : `tide-event-bar${preComp}`;
+          const label    = `${p.cm != null ? p.cm + ' cm' : ''}${preComp ? ' · Vorberechnung' : ''}`;
+          html += `<div class="${barCls}" style="left:${leftPct}%;width:${widthPct}%" title="${label}"></div>`;
+        }
+        // Roter Pegelgrenzwert-Balken: zeigt wann der Wasserstand den Grenzwert erreicht/überschreitet
+        if (tideLevelMin != null && p.cm != null && p.cm >= tideLevelMin) {
+          // Schätze Zeitfenster wo Pegel >= tideLevelMin (cosinus-Annäherung)
+          // Für NW: Pegel ist minimal, darunter liegt er selten. Für HW: Fläche über dem Grenzwert.
+          const ratio = (tideHwNw === 'H')
+            ? Math.acos(1 - 2 * (p.cm - tideLevelMin) / Math.max(1, p.cm)) / Math.PI
+            : Math.acos(1 - 2 * (tideLevelMin - p.cm) / Math.max(1, tideLevelMin)) / Math.PI;
+          const threshHalfMin = Math.min(halfW, isNaN(ratio) ? halfW : ratio * halfW * 2);
+          const ls = peakMin - threshHalfMin;
+          const le = peakMin + threshHalfMin;
+          const ls0 = Math.max(0, ls);
+          const le0 = Math.min(1440, le);
+          if (ls0 < 1440 && le0 > 0) {
+            const lLeftPct  = (ls0 / 1440) * 100;
+            const lWidthPct = ((le0 - ls0) / 1440) * 100;
+            const durationMin = Math.round(le0 - ls0);
+            const durationStr = durationMin >= 60
+              ? `${Math.floor(durationMin/60)}h ${durationMin%60}min`
+              : `${durationMin} min`;
+            html += `<div class="tide-level-bar" style="left:${lLeftPct}%;width:${lWidthPct}%" title="Pegel ≥ ${tideLevelMin} cm für ca. ${durationStr}"></div>`;
           }
         }
-        // Falls der Balken in den nächsten/vorigen Tag reicht: das regeln wir im FARGE-Plan auch via overflow
-        // (spart Komplexität — Hauptereignis liegt fast immer im Tag)
       }
       html += '</div>';  // /tide-row-grid
     }
