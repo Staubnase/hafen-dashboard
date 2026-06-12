@@ -1950,7 +1950,8 @@ async function loadPegel() {
 
     const vals = pairs.map(p => p.val);
     const latest = pairs[pairs.length-1].val;
-    const prev   = pairs[pairs.length-2]?.val ?? latest;
+    // Trend über die letzten ~15 Messwerte — Minutenwerte allein sind zu verrauscht
+    const prev   = pairs[Math.max(0, pairs.length-16)]?.val ?? latest;
     const diff   = latest - prev;
 
     // Letztes HW und NW per Peak-Detection ermitteln
@@ -2001,9 +2002,10 @@ async function loadPegel() {
     const tbody = document.getElementById('pegel-tbody');
     const tableRows = [...pairs].reverse().slice(0, 96);
     tbody.innerHTML = tableRows.map((p, i) => {
+      // Trend: Vergleich mit dem direkt vorhergehenden Messwert (Zeile darunter = älter)
       const prev2 = tableRows[i + 1];
       const d = prev2 ? p.val - prev2.val : 0;
-      const trend = d > 3 ? '<span class="t-up">↗</span>' : d < -3 ? '<span class="t-down">↘</span>' : '<span class="t-ok">→</span>';
+      const trend = d > 0 ? '<span class="t-up">↗</span>' : d < 0 ? '<span class="t-down">↘</span>' : '<span class="t-ok">→</span>';
       const date = p.ts.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'2-digit'});
       const time = p.ts.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
       return `<tr>
@@ -4617,7 +4619,7 @@ function renderGezeiten() {
     const wd = weekdays[e.dt.getDay()];
     return `<div class="tide-box ${hw?'hw':'nw'}${isNext?' next-up':''}">
       <div class="tide-box-top">
-        <span class="tide-type-pill ${hw?'tp-hw':''}">${hw?'Hochwasser':'Niedrigwasser'}</span>
+        <span class="tide-type-pill ${hw?'tp-hw':''}">${hw?'Tidehochwasser':'Tideniedrigwasser'}</span>
         <span class="tide-date-small">${wd}, ${e.day}.${String(e.month).padStart(2,'0')}.</span>
       </div>
       <div class="tide-main-row">
