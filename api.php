@@ -35,7 +35,7 @@ if (!isset($ALLOWED[$target])) {
 $url = $ALLOWED[$target];
 
 $ch = curl_init($url);
-curl_setopt_array($ch, [
+$opts = [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_FOLLOWLOCATION => true,
     CURLOPT_MAXREDIRS      => 3,
@@ -44,7 +44,43 @@ curl_setopt_array($ch, [
     CURLOPT_SSL_VERIFYHOST => 2,
     CURLOPT_USERAGENT      => 'HafenDashboard/2.0',
     CURLOPT_HTTPHEADER     => ['Accept: application/json, text/xml, */*'],
-]);
+];
+
+// Mobilithek verlangt ein Client-Zertifikat (mTLS). Die Datei liegt EINE Ebene
+// über dem Webroot (außerhalb des öffentlich erreichbaren Verzeichnisses) und
+// wird hier nur eingebunden, wenn vorhanden — sonst läuft der Request ohne Cert
+// (und Mobilithek antwortet mit 400 "No required SSL certificate was sent").
+// .p12 wird bevorzugt (keine Konvertierung nötig, curl unterstützt es direkt);
+// .pem (bereits konvertiert) ist der Fallback.
+if ($target === 'mobilithek') {
+    $certDir  = dirname(__DIR__) . '/mobilithek-cert/';
+    $p12File  = $certDir . 'certificate.p12';
+    $pemFile  = $certDir . 'keyandcerts.pem';
+    // ── HIER lokal dein Mobilithek-Zertifikat-Passwort eintragen (zum Testen) ──
+    // NICHT committen! Diese Zeile vor einem Push wieder leeren oder die
+    // Umgebungsvariable MOBILITHEK_CERT_PASSWORD nutzen.
+    $certPass = getenv('MOBILITHEK_CERT_PASSWORD') ?: '';
+
+    if (file_exists($p12File)) {
+        $opts[CURLOPT_SSLCERT]     = $p12File;
+        $opts[CURLOPT_SSLCERTTYPE] = 'P12';
+        $opts[CURLOPT_SSLKEY]      = $p12File;
+        $opts[CURLOPT_SSLKEYTYPE]  = 'P12';
+        if ($certPass !== '') {
+            $opts[CURLOPT_KEYPASSWD] = $certPass;
+        }
+    } elseif (file_exists($pemFile)) {
+        $opts[CURLOPT_SSLCERT]     = $pemFile;
+        $opts[CURLOPT_SSLCERTTYPE] = 'PEM';
+        $opts[CURLOPT_SSLKEY]      = $pemFile;
+        $opts[CURLOPT_SSLKEYTYPE]  = 'PEM';
+        if ($certPass !== '') {
+            $opts[CURLOPT_KEYPASSWD] = $certPass;
+        }
+    }
+}
+
+curl_setopt_array($ch, $opts);
 
 $body   = curl_exec($ch);
 $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
