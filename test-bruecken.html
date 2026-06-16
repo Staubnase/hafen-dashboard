@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Test: Brückensperrmeldungen (Mobilithek)</title>
+<style>
+  body { font-family: monospace; background:#111; color:#ddd; padding:20px; }
+  h1 { font-size:16px; color:#fff; }
+  .status { padding:8px 12px; border-radius:4px; margin:10px 0; font-size:13px; }
+  .ok   { background:#14391c; color:#7ee787; }
+  .err  { background:#3a1414; color:#ff9b9b; }
+  .idle { background:#2a2a2a; color:#aaa; }
+  table { border-collapse: collapse; width:100%; margin-top:14px; font-size:13px; }
+  th, td { border:1px solid #333; padding:6px 10px; text-align:left; }
+  th { background:#1c1c1c; }
+  tr.active { background:#3a1414; }
+  tr.open   { background:#14271a; }
+  pre { background:#1a1a1a; padding:12px; overflow:auto; max-height:400px; font-size:11px; border:1px solid #333; }
+  button { background:#2563eb; color:#fff; border:none; padding:8px 14px; border-radius:4px; cursor:pointer; font-family:monospace; }
+  button:hover { background:#1d4ed8; }
+  details summary { cursor:pointer; margin-top:16px; color:#9ca3af; }
+</style>
+</head>
+<body>
+
+<h1>🧪 Test — Brückensperrmeldungen (HPA / Mobilithek)</h1>
+<p>Ruft ausschließlich <code>api.php?target=mobilithek</code> ab und zeigt das Ergebnis roh + geparst.
+Funktioniert nur auf dem PHP-Server (nicht auf GitHub Pages).</p>
+
+<button onclick="run()">🔄 Neu laden</button>
+<span id="status" class="status idle">Bereit.</span>
+
+<table id="result-table" style="display:none">
+  <thead>
+    <tr><th>Brücke</th><th>Status</th><th>Von</th><th>Bis</th><th>Restdauer (min)</th><th>Spuren gesperrt</th></tr>
+  </thead>
+  <tbody id="result-body"></tbody>
+</table>
+
+<details>
+  <summary>Rohes XML anzeigen</summary>
+  <pre id="raw-xml">—</pre>
+</details>
+
+<script>
+const URL_TARGET = 'api.php?target=mobilithek';
+
+const BRUECKEN_NAMES = {
+  'HA_Bridge_Kattwykhubbrücke': 'Kattwykhubbrücke',
+  'HA_Bridge_Kattwykbrücke':    'Kattwykbrücke (Straße)',
+  'HA_Bridge_Reiherstieg':      'Reiherstiegklappbrücke',
+  'HA_Bridge_Retheklappbrücke': 'Retheklappbrücke',
+  'HA_Bridge_Müggenburger':     'Müggenburger Drehbrücke',
+  'HA_Bridge_Harburger_Chaussee':'Harburger Chausseebrücke',
+  'HA_Bridge_Rugenberger':      'Rugenberger Schleuse',
+};
+
+function parseBrueckenXML(xmlStr) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlStr, 'text/xml');
+  const perr = doc.getElementsByTagName('parsererror')[0];
+  if (perr) throw new Error('XML-Parse-Fehler: ' + perr.textContent.slice(0, 200));
+
+  const ns = 'http://datex2.eu/schema/2/2_0';
+  const records = doc.getElementsByTagNameNS(ns, 'situationRecord');
+  const byBridge = new Map();
+  for (const rec of records) {
+    const srcEl = rec.getElementsByTagNameNS(ns, 'sourceIdentification')[0];
+    const src = srcEl?.textContent || 'Unbekannt';
+    const statusEl = rec.getElementsByTagNameNS(ns, 'validityStatus')[0];
+    const status = statusEl?.textContent || 'unknown';
+    const startEl = rec.getElementsByTagNameNS(ns, 'overallStartTime')[0];
+    const endEl = rec.getElementsByTagNameNS(ns, 'overallEndTime')[0];
+    const remainEl = rec.getElementsByTagName('remainingDurationInMinutes')[0];
+    const lanesRest = rec.getElementsByTagName('numberOfLanesRestricted')[0];
+    const lanesTotal = rec.getElementsByTagName('numberOfLanesOnRoad')[0];
+
+    const entry = {
+      src, name: BRUECKEN_NAMES[src] || src,
+      status,
+      start: startEl ? new Date(startEl.textContent) : null,
+      end: endEl ? new Date(endEl.textContent) : null,
+      remainingMin: remainEl ? parseInt(remainEl.textContent) : null,
+      lanesRestricted: lanesRest ? parseInt(lanesRest.textContent) : 0,
+      lanesTotal: lanesTotal ? parseInt(lanesTotal.textContent) : 1,
+    };
+    if (!byBridge.has(src) || (entry.remainingMin != null && entry.remainingMin < (byBridge.get(src).remainingMin ?? Infinity))) {
+      byBridge.set(src, entry);
+    }
+  }
+  return Array.from(byBridge.values());
+}
+
+function setStatus(text, cls) {
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.className = 'status ' + cls;
+}
+
+async function run() {
+  setStatus('Lade…', 'idle');
+  document.getElementById('result-table').style.display = 'none';
+  document.getElementById('raw-xml').textContent = '—';
+
+  try {
+    const res = await fetch(URL_TARGET, { cache: 'no-store' });
+    const text = await res.text();
+    document.getElementById('raw-xml').textContent = text;
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!text.includes('situationRecord') && !text.includes('d2LogicalModel')) {
+      throw new Error('Antwort enthält kein DATEX-II-XML (vermutlich Fehlerseite oder PHP-Quelltext)');
+    }
+
+    const bridges = parseBrueckenXML(text);
+    const tbody = document.getElementById('result-body');
+    const now = Date.now();
+    tbody.innerHTML = bridges.map(b => {
+      const isActive = b.status === 'active' && b.end && b.end.getTime() > now;
+      return `<tr class="${isActive ? 'active' : 'open'}">
+        <td>${b.name}</td>
+        <td>${b.status}</td>
+        <td>${b.start ? b.start.toLocaleString('de-DE') : '—'}</td>
+        <td>${b.end ? b.end.toLocaleString('de-DE') : '—'}</td>
+        <td>${b.remainingMin ?? '—'}</td>
+        <td>${b.lanesRestricted} / ${b.lanesTotal}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6">Keine Records gefunden</td></tr>';
+    document.getElementById('result-table').style.display = '';
+
+    setStatus(`OK — ${bridges.length} Brücken-Records geparst (HTTP ${res.status})`, 'ok');
+  } catch (e) {
+    setStatus('Fehler: ' + e.message, 'err');
+    console.error(e);
+  }
+}
+
+run();
+</script>
+</body>
+</html>
