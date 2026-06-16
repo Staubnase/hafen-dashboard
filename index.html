@@ -5190,7 +5190,7 @@ function switchView(view) {
 //   - PEGELONLINE-Messwerte (letzte 7 Tage)
 //   - BSH-Vorhersage (Kurvenvorhersage + astro) wenn verfügbar
 // Fällt zurück auf PEGELONLINE allein, sonst statische BSH-Tabelle.
-function _buildSinusInterp(allPeaks, result) {
+function _buildSinusInterp(allPeaks, result, targetField = 'forecast') {
   if (!allPeaks.length) return;
   const sorted = [...allPeaks].sort((a, b) => a.ts - b.ts);
   const tMin = sorted[0].ts.getTime();
@@ -5208,7 +5208,7 @@ function _buildSinusInterp(allPeaks, result) {
     } else if (prev) { cm = prev.cm; }
     else if (next)   { cm = next.cm; }
     else continue;
-    result.forecast.push({ ts: new Date(t), cm });
+    result[targetField].push({ ts: new Date(t), cm });
   }
 }
 
@@ -5280,7 +5280,7 @@ function collectTideBigSeries() {
     src.peaks.forEach(p => result.peaks.push({ts: p.ts, cm: p.cm, typ: p.typ}));
     // Gezeitenvorausberechnung (grün gestrichelt) aus precomputed Peaks
     if (precomputedPeaks.length) {
-      _buildSinusInterp(precomputedPeaks, result);  // füllt result.astro
+      _buildSinusInterp(precomputedPeaks, result, 'astro');  // füllt result.astro
       const liveMax = result.peaks.length ? Math.max(...result.peaks.map(p => p.ts.getTime())) : 0;
       const extra = precomputedPeaks.filter(p => p.ts.getTime() > liveMax);
       result.peaks.push(...extra);
