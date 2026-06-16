@@ -56,6 +56,9 @@ if ($target === 'mobilithek') {
     $certDir  = dirname(__DIR__) . '/mobilithek-cert/';
     $p12File  = $certDir . 'certificate.p12';
     $pemFile  = $certDir . 'keyandcerts.pem';
+    // ── HIER lokal dein Mobilithek-Zertifikat-Passwort eintragen (zum Testen) ──
+    // NICHT committen! Diese Zeile vor einem Push wieder leeren oder die
+    // Umgebungsvariable MOBILITHEK_CERT_PASSWORD nutzen.
     $certPass = getenv('MOBILITHEK_CERT_PASSWORD') ?: '';
 
     if (file_exists($p12File)) {
