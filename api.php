@@ -35,7 +35,7 @@ if (!isset($ALLOWED[$target])) {
 $url = $ALLOWED[$target];
 
 $ch = curl_init($url);
-curl_setopt_array($ch, [
+$opts = [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_FOLLOWLOCATION => true,
     CURLOPT_MAXREDIRS      => 3,
@@ -44,7 +44,27 @@ curl_setopt_array($ch, [
     CURLOPT_SSL_VERIFYHOST => 2,
     CURLOPT_USERAGENT      => 'HafenDashboard/2.0',
     CURLOPT_HTTPHEADER     => ['Accept: application/json, text/xml, */*'],
-]);
+];
+
+// Mobilithek verlangt ein Client-Zertifikat (mTLS). Die Datei liegt EINE Ebene
+// über dem Webroot (außerhalb des öffentlich erreichbaren Verzeichnisses) und
+// wird hier nur eingebunden, wenn vorhanden — sonst läuft der Request ohne Cert
+// (und Mobilithek antwortet mit 400 "No required SSL certificate was sent").
+if ($target === 'mobilithek') {
+    $certFile = dirname(__DIR__) . '/mobilithek-cert/keyandcerts.pem';
+    $certPass = getenv('MOBILITHEK_CERT_PASSWORD') ?: '';
+    if (file_exists($certFile)) {
+        $opts[CURLOPT_SSLCERT]     = $certFile;
+        $opts[CURLOPT_SSLCERTTYPE] = 'PEM';
+        $opts[CURLOPT_SSLKEY]      = $certFile;
+        $opts[CURLOPT_SSLKEYTYPE]  = 'PEM';
+        if ($certPass !== '') {
+            $opts[CURLOPT_KEYPASSWD] = $certPass;
+        }
+    }
+}
+
+curl_setopt_array($ch, $opts);
 
 $body   = curl_exec($ch);
 $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);

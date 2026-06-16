@@ -1,2 +1,7 @@
 # Server-Konfiguration mit API-Keys — niemals committen
 config.php
+
+# Mobilithek Client-Zertifikat — niemals committen
+mobilithek-cert/
+*.p12
+*.pem
