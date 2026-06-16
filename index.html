@@ -1888,7 +1888,10 @@ async function loadPrecomputedTides() {
     for (const line of text.split('\n')) {
       const m = line.trim().match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+(HW|NW)\s+(\d+)/i);
       if (!m) continue;
-      const ts = new Date(`${m[1]}T${m[2]}:00`);
+      // BSH-Datei nutzt fixe Zeitzone MEZ (UTC+1), unabhaengig von Sommerzeit —
+      // explizit anhaengen, sonst interpretiert der Browser die Zeit lokal (mit DST)
+      // und alle Werte verschieben sich im Sommer um 1h.
+      const ts = new Date(`${m[1]}T${m[2]}:00+01:00`);
       if (isNaN(ts.getTime())) continue;
       peaks.push({ ts, cm: parseInt(m[4]), typ: m[3].toUpperCase() === 'HW' ? 'H' : 'N', source: 'precomputed' });
     }
@@ -5195,12 +5198,11 @@ function _buildSinusInterp(allPeaks, result, targetField = 'forecast') {
   const sorted = [...allPeaks].sort((a, b) => a.ts - b.ts);
   const tMin = sorted[0].ts.getTime();
   const tMax = sorted[sorted.length - 1].ts.getTime() + 6 * 3600000;
+  let idx = 0; // einziger Vorwärts-Zeiger statt erneutem Scan bei jedem Schritt
   for (let t = tMin; t <= tMax; t += 10 * 60000) {
-    let prev = null, next = null;
-    for (const p of sorted) {
-      if (p.ts.getTime() <= t) prev = p;
-      else { next = p; break; }
-    }
+    while (idx + 1 < sorted.length && sorted[idx + 1].ts.getTime() <= t) idx++;
+    const prev = sorted[idx].ts.getTime() <= t ? sorted[idx] : null;
+    const next = idx + 1 < sorted.length ? sorted[idx + 1] : null;
     let cm;
     if (prev && next) {
       const frac = (t - prev.ts.getTime()) / (next.ts.getTime() - prev.ts.getTime());
