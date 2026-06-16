@@ -82,10 +82,35 @@ if ($target === 'mobilithek') {
 
 curl_setopt_array($ch, $opts);
 
+// Lokales Debugging: ?target=mobilithek&debug=1 liefert curl-Verbose-Log statt
+// der eigentlichen Antwort. Nur von localhost erlaubt — niemals in Produktion
+// mit echtem Server-Host nutzen, da das Infos über das Setup verraten könnte.
+$debug = isset($_GET['debug']) && in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1']);
+$verboseLog = '';
+if ($debug) {
+    $verboseStream = fopen('php://temp', 'w+');
+    curl_setopt($ch, CURLOPT_VERBOSE, true);
+    curl_setopt($ch, CURLOPT_STDERR, $verboseStream);
+}
+
 $body   = curl_exec($ch);
 $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $ctype  = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
 $err    = curl_error($ch);
+
+if ($debug) {
+    rewind($verboseStream);
+    $verboseLog = stream_get_contents($verboseStream);
+    fclose($verboseStream);
+    curl_close($ch);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "=== curl-Verbose-Log ===\n" . $verboseLog;
+    echo "\n=== HTTP-Status ===\n" . $status . "\n";
+    echo "\n=== curl-Error ===\n" . ($err ?: '(keiner)') . "\n";
+    echo "\n=== Body (" . strlen((string)$body) . " Bytes) ===\n" . $body;
+    exit;
+}
+
 curl_close($ch);
 
 if ($err || $body === false) {
