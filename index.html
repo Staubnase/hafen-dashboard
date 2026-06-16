@@ -10,7 +10,7 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
   font-src https://fonts.gstatic.com;
   img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://api.tomtom.com https://windy.com https://*.windy.com;
-  connect-src 'self' https://pegelonline.wsv.de https://api.open-meteo.com https://api.tomtom.com https://gdi.bsh.de https://api.allorigins.win https://api.codetabs.com https://corsproxy.io;
+  connect-src 'self' https://pegelonline.wsv.de https://api.open-meteo.com https://api.tomtom.com https://gdi.bsh.de;
   frame-src https://embed.windy.com;
   object-src 'none';
   base-uri 'self';
@@ -4289,10 +4289,7 @@ function parseBSH() {
 // schlägt fehl, und die öffentlichen CORS-Proxies dahinter rufen BSH direkt ab.
 const BSH_TARGET_URL = 'https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast/collections/waterlevelforecastdata/items/hamburg_st-pauli?f=json';
 const BSH_PROXIES = [
-  _ => 'api.php?target=bsh',
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-  u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+  { url: _ => 'api.php?target=bsh' },
 ];
 
 // --- PEGELONLINE Konfiguration (Fallback) ---
@@ -4307,10 +4304,11 @@ async function loadBSH() {
   // --- Versuch 1: BSH via Proxy-Kette ---
   for (const proxy of BSH_PROXIES) {
     try {
-      const url = proxy(BSH_TARGET_URL);
+      const url = proxy.url(BSH_TARGET_URL);
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const raw  = await res.json();
+      const json = proxy.unwrap ? proxy.unwrap(raw) : raw;
       // OGC API Format (neu): json.properties mit high_water_low_water
       // Legacy Format (alt): json.hwnw_forecast direkt
       const p = json?.properties ?? json;
