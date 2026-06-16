@@ -44,6 +44,10 @@ $opts = [
     CURLOPT_SSL_VERIFYHOST => 2,
     CURLOPT_USERAGENT      => 'HafenDashboard/2.0',
     CURLOPT_HTTPHEADER     => ['Accept: application/json, text/xml, */*'],
+    // Mobilithek verlangt zwingend einen "Accept-Encoding: gzip" Header, sonst HTTP 400
+    // (siehe Schnittstellenbeschreibung Kap. 6.3.2, Fehlercode 400/406). CURLOPT_ENCODING
+    // setzt diesen Header automatisch und entpackt die GZIP-Antwort transparent.
+    CURLOPT_ENCODING       => 'gzip',
 ];
 
 // Mobilithek verlangt ein Client-Zertifikat (mTLS). Die Datei liegt EINE Ebene
