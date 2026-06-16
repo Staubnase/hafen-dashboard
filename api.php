@@ -50,13 +50,26 @@ $opts = [
 // über dem Webroot (außerhalb des öffentlich erreichbaren Verzeichnisses) und
 // wird hier nur eingebunden, wenn vorhanden — sonst läuft der Request ohne Cert
 // (und Mobilithek antwortet mit 400 "No required SSL certificate was sent").
+// .p12 wird bevorzugt (keine Konvertierung nötig, curl unterstützt es direkt);
+// .pem (bereits konvertiert) ist der Fallback.
 if ($target === 'mobilithek') {
-    $certFile = dirname(__DIR__) . '/mobilithek-cert/keyandcerts.pem';
+    $certDir  = dirname(__DIR__) . '/mobilithek-cert/';
+    $p12File  = $certDir . 'certificate.p12';
+    $pemFile  = $certDir . 'keyandcerts.pem';
     $certPass = getenv('MOBILITHEK_CERT_PASSWORD') ?: '';
-    if (file_exists($certFile)) {
-        $opts[CURLOPT_SSLCERT]     = $certFile;
+
+    if (file_exists($p12File)) {
+        $opts[CURLOPT_SSLCERT]     = $p12File;
+        $opts[CURLOPT_SSLCERTTYPE] = 'P12';
+        $opts[CURLOPT_SSLKEY]      = $p12File;
+        $opts[CURLOPT_SSLKEYTYPE]  = 'P12';
+        if ($certPass !== '') {
+            $opts[CURLOPT_KEYPASSWD] = $certPass;
+        }
+    } elseif (file_exists($pemFile)) {
+        $opts[CURLOPT_SSLCERT]     = $pemFile;
         $opts[CURLOPT_SSLCERTTYPE] = 'PEM';
-        $opts[CURLOPT_SSLKEY]      = $certFile;
+        $opts[CURLOPT_SSLKEY]      = $pemFile;
         $opts[CURLOPT_SSLKEYTYPE]  = 'PEM';
         if ($certPass !== '') {
             $opts[CURLOPT_KEYPASSWD] = $certPass;
