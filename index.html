@@ -1881,7 +1881,7 @@ let precomputedPeaks = [];   // {ts, cm, typ:'H'|'N', source:'precomputed'}
 
 async function loadPrecomputedTides() {
   try {
-    const res = await fetch('gezeiten.txt');
+    const res = await fetch('gezeiten.txt', { cache: 'no-store' });
     if (!res.ok) return;
     const text = await res.text();
     const peaks = [];
