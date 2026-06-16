@@ -5336,15 +5336,20 @@ function renderTideBig() {
   const measure  = downsample(s.measure);
   const peaksIn  = s.peaks.filter(inView);
 
-  // X-Achse (base): Alle im Fenster verfügbaren Zeitpunkte zusammenführen.
-  // measure deckt nur die Vergangenheit ab, forecast/astro die Zukunft.
-  // Wir bauen eine gemeinsame Zeitachse aus allen Serien (10-min-Raster).
-  const allInView = [...measure, ...forecast, ...astro].filter(inView);
-  if (!allInView.length) return;
-  // Deduplizieren & sortieren nach Timestamp
-  const tsSet = new Map();
-  allInView.forEach(p => tsSet.set(Math.round(p.ts.getTime() / (10*60000)), p.ts));
-  const base = [...tsSet.values()].sort((a, b) => a - b).map(ts => ({ ts }));
+  // X-Achse (base): gleichmäßiges Zeitraster über das sichtbare Fenster.
+  // Wichtig: Da Chart.js hier eine Kategorie-Achse (Index-basiert, jeder Index
+  // gleich breit) nutzt, MUSS jeder Index dem gleichen Zeitabstand entsprechen —
+  // sonst werden Bereiche mit dichteren Rohdaten (z.B. Messwerte) im Diagramm
+  // gestreckt und Bereiche mit dünneren Daten (z.B. 10-Min-Raster der Astro-
+  // Vorausberechnung) gestaucht dargestellt. Das führte dazu, dass die grüne
+  // Gezeitenvorausberechnung optisch eine andere "Breite"/Periode hatte als
+  // die schwarze Messkurve, obwohl beide Serien korrekte Zeitstempel hatten.
+  if (!measure.length && !forecast.length && !astro.length) return;
+  const viewSpan = viewEnd - viewStart;
+  const targetPoints = 700;
+  const stepMs = Math.max(60000, Math.round((viewSpan / targetPoints) / 60000) * 60000);
+  const base = [];
+  for (let t = viewStart; t <= viewEnd; t += stepMs) base.push({ ts: new Date(t) });
   if (!base.length) return;
 
   const fmtLabel = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
