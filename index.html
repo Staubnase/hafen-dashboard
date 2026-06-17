@@ -4992,18 +4992,19 @@ function renderGezeiten() {
     // Wenn hasCurveData: sampledAstro/sampledFc/sampled.cm sind bereits cm NHN (kein toCmNHN nötig)
     // Wenn bshIsInterpolated: sampled.cm ist cm PNP → toCmNHN anwenden
     const curveAsNHN = hasCurveData && !bshIsInterpolated;
-    if (sampledAstro) {
-      datasets.push({
-        label: 'Gezeitenvorausberechnung',
-        data: curveAsNHN ? sampledAstro : sampledAstro,  // bereits NHN bei PEGELONLINE-Pfad
-        borderColor: BSH_GREEN,
-        borderWidth: 1.8,
-        borderDash: [6, 4],   // gestrichelt
-        pointRadius: 0, pointHoverRadius: 4,
-        fill: false, tension: 0.3,
-        order: 3,
-      });
-    }
+    // Grüne Gezeitenvorausberechnung vorübergehend deaktiviert
+    // if (sampledAstro) {
+    //   datasets.push({
+    //     label: 'Gezeitenvorausberechnung',
+    //     data: curveAsNHN ? sampledAstro : sampledAstro,  // bereits NHN bei PEGELONLINE-Pfad
+    //     borderColor: BSH_GREEN,
+    //     borderWidth: 1.8,
+    //     borderDash: [6, 4],   // gestrichelt
+    //     pointRadius: 0, pointHoverRadius: 4,
+    //     fill: false, tension: 0.3,
+    //     order: 3,
+    //   });
+    // }
     if (isBSH && sampledFc) {
       datasets.push({
         label: 'Kurvenvorhersage',
