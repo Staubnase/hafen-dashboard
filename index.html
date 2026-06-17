@@ -4464,7 +4464,19 @@ function detectPeaks(measurements, smoothedCm, minGapMs) {
       // Verschiedener Typ + zu dicht: beide verdächtig, aktuellen verwerfen
     }
   }
-  return filtered;
+  // Streng alternierende HW/NW-Folge erzwingen: verbleibende Doppelgänger
+  // gleichen Typs (z.B. NW direkt nach NW) werden durch den Extremeren ersetzt.
+  const alternating = [];
+  for (const p of filtered) {
+    const last = alternating[alternating.length - 1];
+    if (!last || p.typ !== last.typ) {
+      alternating.push(p);
+    } else {
+      const keepNew = p.typ === 'H' ? p.cm > last.cm : p.cm < last.cm;
+      if (keepNew) alternating[alternating.length - 1] = p;
+    }
+  }
+  return alternating;
 }
 // Converts PEGELONLINE peaks into our internal event shape (identisch zu parseBSH())
 function bshEventsFromApi() {
@@ -5280,9 +5292,10 @@ function collectTideBigSeries() {
     // PEGELONLINE-Fallback: Messwerte + detektierte Peaks
     src.measurements.forEach(m => result.measure.push({ts: m.ts, cm: m.cm}));
     src.peaks.forEach(p => result.peaks.push({ts: p.ts, cm: p.cm, typ: p.typ}));
-    // Gezeitenvorausberechnung (grün gestrichelt) aus precomputed Peaks
+    // Gezeitenvorausberechnung: result.astro bleibt leer; Sinus-Interpolation
+    // erfolgt in renderTideBig() direkt auf dem Base-Zeitraster (vermeidet
+    // Phasenfehler durch die 52.000-Punkte-Vorberechnung + Downsample + pinTo).
     if (precomputedPeaks.length) {
-      _buildSinusInterp(precomputedPeaks, result, 'astro');  // füllt result.astro
       const liveMax = result.peaks.length ? Math.max(...result.peaks.map(p => p.ts.getTime())) : 0;
       const extra = precomputedPeaks.filter(p => p.ts.getTime() > liveMax);
       result.peaks.push(...extra);
@@ -5374,7 +5387,28 @@ function renderTideBig() {
     : toCmNHN;
   const measureCm  = pinTo(measure).map(toCmNHNcurv);
   const forecastCm = pinTo(forecast).map(toCmNHNcurv);
-  const astroCm    = pinTo(astro).map(toCmNHNcurv);
+  // Astro: bei PEGELONLINE-Fallback direkt auf den Base-Zeitstempeln interpolieren
+  // (s.astro ist leer); bei BSH mit Kurvendaten via pinTo wie gehabt.
+  let astroCm;
+  if (astro.length > 0) {
+    astroCm = pinTo(astro).map(toCmNHNcurv);
+  } else if (precomputedPeaks.length > 0) {
+    const sp = [...precomputedPeaks].sort((a, b) => a.ts - b.ts);
+    let pi = 0;
+    astroCm = base.map(bp => {
+      const t = bp.ts.getTime();
+      while (pi + 1 < sp.length && sp[pi + 1].ts.getTime() <= t) pi++;
+      const prev = pi < sp.length && sp[pi].ts.getTime() <= t ? sp[pi] : null;
+      const next = pi + 1 < sp.length ? sp[pi + 1] : null;
+      if (prev && next) {
+        const frac = (t - prev.ts.getTime()) / (next.ts.getTime() - prev.ts.getTime());
+        return toCmNHN(Math.round(prev.cm + (next.cm - prev.cm) * (1 - Math.cos(Math.PI * frac)) / 2));
+      }
+      return prev ? toCmNHN(prev.cm) : next ? toCmNHN(next.cm) : null;
+    });
+  } else {
+    astroCm = new Array(base.length).fill(null);
+  }
 
   // Scheitel auf Labels pinnen
   const peakData = new Array(base.length).fill(null);
