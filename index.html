@@ -4378,6 +4378,18 @@ async function loadBSH() {
       return { ts: new Date(ts.trim()), cm: parseFloat(val.trim()) };
     }).filter(m => !isNaN(m.ts.getTime()) && !isNaN(m.cm));
 
+    // Chronologisch sortieren (verhindert senkrechte "Rücksprung"-Artefakte im Chart)
+    measurements.sort((a, b) => a.ts - b.ts);
+    // Isolierte Ausreißer/Spikes glätten: ein Punkt, der sich von beiden Nachbarn
+    // stark und in dieselbe Richtung abhebt (>60 cm), wird durch deren Mittel ersetzt.
+    for (let i = 1; i < measurements.length - 1; i++) {
+      const prev = measurements[i - 1].cm, cur = measurements[i].cm, next = measurements[i + 1].cm;
+      const dPrev = cur - prev, dNext = cur - next;
+      if (Math.abs(dPrev) > 60 && Math.abs(dNext) > 60 && Math.sign(dPrev) === Math.sign(dNext)) {
+        measurements[i].cm = Math.round((prev + next) / 2);
+      }
+    }
+
     const smoothed = rollingMean(measurements.map(m => m.cm), 15);
     const peaks = detectPeaks(measurements, smoothed, 180 * 60 * 1000);
 
@@ -4507,7 +4519,7 @@ function bshEventsFromApi() {
 
   // PEGELONLINE-Format: peaks = [{ts, cm, typ}, ...]
   if (bshApiData.peaks) {
-    return bshApiData.peaks.map(p => {
+    const toEvent = p => {
       const heightPNP = p.cm / 100;
       const heightNHN = heightPNP + PNP;
       const ref = p.typ === 'H' ? MHW_M : MNW_M;
@@ -4524,7 +4536,16 @@ function bshEventsFromApi() {
         dt: p.ts,
         forecast: `${sign}${deviation.toFixed(2)} m`,
       };
-    });
+    };
+    const measured = bshApiData.peaks.map(toEvent);
+    // PEGELONLINE-Messwerte reichen nur bis "jetzt". Zukünftige Scheitel aus der
+    // Vorausberechnung (gezeiten.txt) ergänzen, damit die "nächstes HW/NW"-Boxen
+    // gefüllt werden. Nur Scheitel nach dem letzten gemessenen verwenden.
+    const lastMeasured = measured.length ? Math.max(...measured.map(e => e.dt.getTime())) : 0;
+    const future = (precomputedPeaks || [])
+      .filter(p => p.ts.getTime() > lastMeasured)
+      .map(toEvent);
+    return [...measured, ...future];
   }
 
   return [];
