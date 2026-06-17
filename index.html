@@ -5520,9 +5520,10 @@ function renderTideBig() {
     { label: 'Mittleres Hochwasser (MHW)', data: mhwLine, borderColor: '#A0CBE8', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
     { label: 'Mittleres Niedrigwasser (MNW)', data: mnwLine, borderColor: '#FF9D9A', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
   ];
-  if (astroCm.some(v => v != null)) {
-    datasets.push({ label: 'Gezeitenvorausberechnung', data: astroCm, borderColor: '#16a34a', borderWidth: 1.8, borderDash:[6,4], pointRadius:0, fill:false, tension:0.3, order:3 });
-  }
+  // Grüne Gezeitenvorausberechnung vorübergehend deaktiviert
+  // if (astroCm.some(v => v != null)) {
+  //   datasets.push({ label: 'Gezeitenvorausberechnung', data: astroCm, borderColor: '#16a34a', borderWidth: 1.8, borderDash:[6,4], pointRadius:0, fill:false, tension:0.3, order:3 });
+  // }
   if (forecastCm.some(v => v != null)) {
     datasets.push({ label: 'Kurvenvorhersage', data: forecastCm, borderColor: '#1a6fd4', borderWidth: 2, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
   }
