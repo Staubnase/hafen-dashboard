@@ -1595,10 +1595,10 @@ footer {
     </div>
     <!-- Referenz-Schwellen Hamburg-Harburg -->
     <div class="pegel-refs">
-      <div class="pref"><span class="pref-lbl">MHW</span><span class="pref-val">+2,19 m</span></div>
-      <div class="pref"><span class="pref-lbl">MNW</span><span class="pref-val">−1,66 m</span></div>
-      <div class="pref"><span class="pref-lbl">Sturmflut ab</span><span class="pref-val">+3,69 m</span></div>
-      <div class="pref"><span class="pref-lbl">PNP</span><span class="pref-val">−5,015 m</span></div>
+      <div class="pref"><span class="pref-lbl">MHW Harburg</span><span class="pref-val">+2,18 m NHN</span></div>
+      <div class="pref"><span class="pref-lbl">MNW Harburg</span><span class="pref-val">−1,71 m NHN</span></div>
+      <div class="pref"><span class="pref-lbl">Sturmflut ab</span><span class="pref-val">+3,68 m NHN</span></div>
+      <div class="pref"><span class="pref-lbl">PNP Harburg</span><span class="pref-val">−5,02 m NHN</span></div>
     </div>
     <!-- Mini-Chart -->
     <div class="chart-wrap" style="height:110px;margin-top:12px"><canvas id="pegel-chart"></canvas></div>
@@ -4998,14 +4998,14 @@ function renderGezeiten() {
     // Datasets zusammenbauen — MHW/MNW-Referenzlinien, optional BSH-Vorhersagekurven, Messwerte, Scheitelpunkte
     const datasets = [
       {
-        label: 'Mittleres Hochwasser (MHW)',
+        label: 'MHW Harburg (720 cm PNP)',
         data: mhwLine,
         borderColor: BSH_MHW,
         borderWidth: 1.2, borderDash: [5,3],
         pointRadius: 0, fill: false, tension: 0, order: 10,
       },
       {
-        label: 'Mittleres Niedrigwasser (MNW)',
+        label: 'MNW Harburg (331 cm PNP)',
         data: mnwLine,
         borderColor: BSH_MNW,
         borderWidth: 1.2, borderDash: [5,3],
@@ -5042,8 +5042,8 @@ function renderGezeiten() {
     }
     // Hauptlinie (Beobachtung/Messwert)
     const lineLabel = bshIsInterpolated
-      ? 'Kurvenvorhersage'
-      : (isBSH ? 'Beobachtung (Rohdaten)' : 'Messwert (PEGELONLINE)');
+      ? 'Kurvenvorhersage (BSH St. Pauli)'
+      : (isBSH ? 'Beobachtung – BSH St. Pauli (Rohdaten)' : 'Vorausberechnung Harburg (BSH 2026)');
     const lineColor = bshIsInterpolated ? BSH_RED : BSH_BLACK;
     datasets.push({
       label: lineLabel,
@@ -5055,7 +5055,7 @@ function renderGezeiten() {
       order: 1,
     });
     datasets.push({
-      label: 'Scheitelwertvorhersage (Bereich)',
+      label: 'HW/NW-Scheitel Harburg (BSH 2026)',
       data: scheitelData,
       borderColor: 'transparent',
       backgroundColor: BSH_BROWN,
@@ -5124,11 +5124,11 @@ function renderGezeiten() {
   const metaEl = document.getElementById('gezeiten-meta');
   if (metaEl) {
     if (isBSH) {
-      metaEl.textContent = 'BSH · Wasserstandsvorhersage · Hamburg St. Pauli, Elbe';
+      metaEl.textContent = 'BSH Live-API · Wasserstandsvorhersage · Hamburg St. Pauli, Elbe';
     } else if (isPegel) {
-      metaEl.textContent = 'PEGELONLINE · Live-Messwerte · Hamburg-Harburg, Elbe';
+      metaEl.textContent = 'BSH 2026 · Vorausberechnung · Hamburg-Harburg (PNP −5,02 m · MHW 720 cm · MNW 331 cm)';
     } else {
-      metaEl.textContent = 'BSH 2026 · Statische Vorausberechnung · Hamburg-Harburg';
+      metaEl.textContent = 'BSH 2026 · Statische Vorausberechnung · Hamburg-Harburg (PNP −5,02 m · MHW 720 cm · MNW 331 cm)';
     }
   }
   document.getElementById('gezeiten-stats').innerHTML = [
@@ -5543,8 +5543,8 @@ function renderTideBig() {
 
   // Chart bauen
   const datasets = [
-    { label: 'Mittleres Hochwasser (MHW)', data: mhwLine, borderColor: '#A0CBE8', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
-    { label: 'Mittleres Niedrigwasser (MNW)', data: mnwLine, borderColor: '#FF9D9A', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
+    { label: 'MHW Harburg (720 cm PNP)', data: mhwLine, borderColor: '#A0CBE8', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
+    { label: 'MNW Harburg (331 cm PNP)', data: mnwLine, borderColor: '#FF9D9A', borderWidth: 1.2, borderDash:[5,3], pointRadius:0, fill:false, order:10 },
   ];
   // Grüne Gezeitenvorausberechnung vorübergehend deaktiviert
   // if (astroCm.some(v => v != null)) {
@@ -5554,10 +5554,10 @@ function renderTideBig() {
     datasets.push({ label: 'Kurvenvorhersage', data: forecastCm, borderColor: '#1a6fd4', borderWidth: 2, pointRadius:0, fill:false, tension:0.3, spanGaps:false, order:2 });
   }
   if (measureCm.some(v => v != null)) {
-    datasets.push({ label: 'Beobachtung (Rohdaten)', data: measureCm, borderColor: '#1a1a1a', borderWidth: 2, pointRadius:0, fill:false, tension:0.25, spanGaps:false, order:1 });
+    datasets.push({ label: 'Beobachtung – BSH St. Pauli (Rohdaten)', data: measureCm, borderColor: '#1a1a1a', borderWidth: 2, pointRadius:0, fill:false, tension:0.25, spanGaps:false, order:1 });
   }
   datasets.push({
-    label: 'Scheitelwertvorhersage (Bereich)', data: peakData,
+    label: 'HW/NW-Scheitel Harburg (BSH 2026)', data: peakData,
     borderColor: 'transparent', backgroundColor: '#995D02', pointStyle: 'rectRot',
     pointRadius: 3, pointHoverRadius: 6, pointBorderColor: '#995D02', pointBorderWidth: 1,
     showLine: false, order: 0
