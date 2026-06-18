@@ -4622,11 +4622,9 @@ function renderGezeiten() {
   // Chronologisch aufsteigend — früheste oben
   const eventsForTable = useLive
     ? [...all]
-        .filter(e => {
-          const d = (e.dt - nowRef) / 86400000;
-          return d >= -7 && d <= 7;  // letzte 7 Tage + nächste 7 Tage
-        })
+        .filter(e => e.dt >= nowRef)  // ab jetzt
         .sort((a, b) => a.dt - b.dt)
+        .slice(0, 40)
     : all.filter(e => { const d=(e.dt-todayRef)/86400000; return d>=0&&d<14; });
 
   const bshTbody = document.getElementById('bsh-tbody');
