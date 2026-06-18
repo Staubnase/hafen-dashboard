@@ -1787,7 +1787,7 @@ const peakRangePlugin = {
     const { ctx, scales: { y } } = chart;
     if (!y) return;
     chart.data.datasets.forEach((ds, di) => {
-      if (!/Scheitelwert/i.test(ds.label || '')) return;
+      if (!/Scheitel/i.test(ds.label || '')) return;
       const meta = chart.getDatasetMeta(di);
       if (meta.hidden) return;
       const color = ds.pointBorderColor || ds.backgroundColor || '#995D02';
