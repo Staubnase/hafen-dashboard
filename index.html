@@ -4621,7 +4621,12 @@ function renderGezeiten() {
   //   Fallback (statische BSH 2026): alle Events der nächsten 14 Tage
   // Chronologisch aufsteigend — früheste oben
   const eventsForTable = useLive
-    ? [...all].sort((a, b) => b.dt - a.dt).slice(0, 40).reverse()
+    ? [...all]
+        .filter(e => {
+          const d = (e.dt - nowRef) / 86400000;
+          return d >= -7 && d <= 7;  // letzte 7 Tage + nächste 7 Tage
+        })
+        .sort((a, b) => a.dt - b.dt)
     : all.filter(e => { const d=(e.dt-todayRef)/86400000; return d>=0&&d<14; });
 
   const bshTbody = document.getElementById('bsh-tbody');
