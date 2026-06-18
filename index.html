@@ -1528,6 +1528,7 @@ footer {
       <!-- Rechts: Tabelle volle Höhe -->
       <div class="gezeiten-right">
         <div class="section-label">Abw. vom MHW/MNW</div>
+        <div style="font-size:10px;color:var(--text-dim);margin:-4px 0 6px 0;padding:0 2px">BSH Vorausberechnung 2026 · Hamburg-Harburg · MHW 720 cm · MNW 331 cm PNP</div>
         <div class="pegel-table-wrap gezeiten-table-full">
           <table class="data-table" id="bsh-table">
             <thead>
@@ -1557,7 +1558,7 @@ footer {
   <div class="card" id="pegel-card">
     <div class="card-head">
       <div>
-        <div class="card-meta">PEGELONLINE · WSV · Hamburg-Harburg</div>
+        <div class="card-meta">PEGELONLINE · WSV · Hamburg-Harburg · PNP −5,02 m NHN</div>
         <div class="card-title">Wasserstand</div>
       </div>
       <span class="badge badge-idle" id="pegel-badge">Laden…</span>
@@ -1688,7 +1689,7 @@ footer {
   <div class="tide-view-card">
     <div class="tide-view-head">
       <div>
-        <div class="tide-view-meta">PEGELONLINE · BSH · Hamburg-Harburg, Elbe</div>
+        <div class="tide-view-meta">BSH 2026 · Vorausberechnung · Hamburg-Harburg · PNP −5,02 m · MHW 720 cm · MNW 331 cm</div>
         <div class="tide-view-title">Gezeitenvorausberechnung — Pegel Harburg</div>
       </div>
       <div class="tide-view-actions">
@@ -5119,7 +5120,7 @@ function renderGezeiten() {
   const avgNW = nwH.length ? nwH.reduce((a,b)=>a+b,0)/nwH.length : 0;
   const pnpForStats = useLive && bshApiData?.['PNP (unter NHN)']
     ? (bshApiData['PNP (unter NHN)']/100).toFixed(2) : PNP_NHN;
-  const quelleLabel = isBSH ? 'BSH Live' : (isPegel ? 'PEGELONLINE' : 'BSH 2026');
+  const quelleLabel = isBSH ? 'BSH Live (St. Pauli)' : (isPegel ? 'PEGELONLINE (Harburg)' : 'BSH 2026 (Harburg)');
   // Header-Meta der Card entsprechend anpassen
   const metaEl = document.getElementById('gezeiten-meta');
   if (metaEl) {
