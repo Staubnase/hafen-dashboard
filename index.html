@@ -5203,8 +5203,9 @@ let tideRangeDays  = 7;      // Anzahl Tage im sichtbaren Fenster
 
 // Liefert { start: Date, end: Date, startMs, endMs } für den aktuellen Zeitbereich
 function tideRangeWindow() {
-  const start = tideRangeStart ? new Date(tideRangeStart) : (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
-  start.setHours(0,0,0,0);
+  // Start: wenn manuell gesetzt → 0:00 Uhr des gewählten Tages,
+  // sonst → aktueller Zeitpunkt (nicht Tagesbeginn)
+  const start = tideRangeStart ? (() => { const d = new Date(tideRangeStart); d.setHours(0,0,0,0); return d; })() : new Date();
   const end = new Date(start);
   end.setDate(end.getDate() + tideRangeDays);
   return { start, end, startMs: start.getTime(), endMs: end.getTime() };
