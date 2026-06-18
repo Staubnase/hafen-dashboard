@@ -5120,12 +5120,14 @@ function renderGezeiten() {
   const avgNW = nwH.length ? nwH.reduce((a,b)=>a+b,0)/nwH.length : 0;
   const pnpForStats = useLive && bshApiData?.['PNP (unter NHN)']
     ? (bshApiData['PNP (unter NHN)']/100).toFixed(2) : PNP_NHN;
-  const quelleLabel = isBSH ? 'BSH Live (St. Pauli)' : (isPegel ? 'PEGELONLINE (Harburg)' : 'BSH 2026 (Harburg)');
+  // BSH Live-API gibt es nur für St. Pauli (kein Harburg-Endpunkt verfügbar)
+  const quelleLabel = isBSH ? 'BSH Live · St. Pauli (kein Harburg-Endpunkt)' : (isPegel ? 'PEGELONLINE · Harburg' : 'BSH 2026 · Harburg');
   // Header-Meta der Card entsprechend anpassen
   const metaEl = document.getElementById('gezeiten-meta');
   if (metaEl) {
     if (isBSH) {
-      metaEl.textContent = 'BSH Live-API · Wasserstandsvorhersage · Hamburg St. Pauli, Elbe';
+      // BSH Live-API existiert nur für St. Pauli — kein Harburg-Endpunkt verfügbar
+      metaEl.textContent = 'BSH Live-API · St. Pauli (BSH bietet keinen Harburg-Vorhersage-Endpunkt)';
     } else if (isPegel) {
       metaEl.textContent = 'BSH 2026 · Vorausberechnung · Hamburg-Harburg (PNP −5,02 m · MHW 720 cm · MNW 331 cm)';
     } else {
