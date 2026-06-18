@@ -5180,14 +5180,17 @@ function refreshAll() {
   document.getElementById('footer-ts').textContent =
     `Zuletzt aktualisiert: ${new Date().toLocaleString('de-DE')}`;
 
-  loadPrecomputedTides();
   loadPegel();
   loadBruecken();
   loadWetter();
   if (tomtomKey) loadIncidents();
-  loadBSH().then(() => {
-    try { renderGezeiten(); }
-    catch(e) { console.error('renderGezeiten Fehler:', e); }
+  // Vorausberechnung muss geladen sein bevor renderGezeiten() läuft,
+  // damit die Sinuskurve korrekt gezeichnet wird.
+  loadPrecomputedTides().then(() => {
+    loadBSH().then(() => {
+      try { renderGezeiten(); }
+      catch(e) { console.error('renderGezeiten Fehler:', e); }
+    });
   });
 
   nextAt = Date.now() + REFRESH_MS;
