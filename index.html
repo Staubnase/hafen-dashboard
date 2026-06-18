@@ -4719,8 +4719,10 @@ function renderGezeiten() {
     //   PEGELONLINE (nur Messung) → letzte gezeitenRangeDays Tage
     const nowTs = Date.now();
     const rangeMs = gezeitenRangeDays * 86400000;
-    const windowStart = isBSH ? nowTs - 6 * 3600000 : nowTs - rangeMs;
-    const windowEnd   = isBSH ? nowTs + rangeMs      : nowTs;
+    // BSH: etwas Vergangenheit (6h) + Vorhersage vorwärts
+    // PEGELONLINE: ab jetzt vorwärts (Zukunft aus Vorausberechnung)
+    const windowStart = nowTs;
+    const windowEnd   = nowTs + rangeMs;
 
     const inWindow = ts => ts >= windowStart && ts <= windowEnd;
 
@@ -4792,16 +4794,13 @@ function renderGezeiten() {
       sampled = interpPoints;
     }
     if (!sampled) {
-      // PEGELONLINE-Fallback
-      const measAll = bshApiData.measurements;
-      const meas = measAll.filter(m => inWindow(m.ts.getTime()));
-      const step = Math.max(1, Math.floor(meas.length / 600));
-      sampled = meas.filter((_, i) => i % step === 0);
-      peaksSrc = (bshApiData.peaks || []).filter(p => inWindow(p.ts.getTime()));
+      // PEGELONLINE-Fallback: ab jetzt vorwärts → Sinus-Interpolation aus Vorausberechnung
+      peaksSrc = (precomputedPeaks || []).filter(p => inWindow(p.ts.getTime()));
 
-      // Gezeitenvorausberechnung aus precomputedPeaks (gezeiten.txt) per Sinus-Interpolation
+      // Vorausberechnung aus precomputedPeaks (gezeiten.txt) per Sinus-Interpolation
+      // als Haupt-Messkurve ab jetzt vorwärts anzeigen
       if (precomputedPeaks.length) {
-        const astroInterp = [];
+        const interp = [];
         const sorted = [...precomputedPeaks].sort((a, b) => a.ts - b.ts);
         for (let t = windowStart; t <= windowEnd; t += 10 * 60000) {
           let prev = null, next = null;
@@ -4816,16 +4815,12 @@ function renderGezeiten() {
           } else if (prev) { cm = prev.cm; }
           else if (next)   { cm = next.cm; }
           else continue;
-          astroInterp.push({ ts: new Date(t), cm });
+          interp.push({ ts: new Date(t), cm });
         }
-        if (astroInterp.length) {
-          // cm PNP → cm NHN für Chart-Achse
-          const step2 = Math.max(1, Math.floor(astroInterp.length / 600));
-          sampledAstro = astroInterp
-            .filter((_, i) => i % step2 === 0)
-            .map(p => toCmNHN(p.cm));
-        }
+        const step2 = Math.max(1, Math.floor(interp.length / 600));
+        sampled = interp.filter((_, i) => i % step2 === 0);
       }
+      if (!sampled) sampled = [];
     }
 
     // Labels: dd.mm HH:MM
