@@ -4297,6 +4297,11 @@ const BSH_PROXIES = [
 
 // --- PEGELONLINE Konfiguration (Fallback) ---
 const STPAULI_UUID = 'b97db2fe-82ff-4bde-a73b-f087a3b0f9c4';  // Harburg
+// Hamburg-Harburg (DE__724P, BSH-Jahresdatei 2026)
+const HARBURG_PNP_NHN_M = -5.02;
+const HARBURG_MHW_CM    = 720;
+const HARBURG_MNW_CM    = 331;
+// St. Pauli — nur als letzter Fallback wenn keine Harburg-Daten
 const STPAULI_PNP_NHN_M = -5.015;
 const STPAULI_MHW_CM = 719;
 const STPAULI_MNW_CM = 334;
@@ -4396,9 +4401,9 @@ async function loadBSH() {
     bshApiData = {
       source: 'pegelonline',
       station_name: 'Hamburg-Harburg, Elbe',
-      MHW: STPAULI_MHW_CM,
-      MNW: STPAULI_MNW_CM,
-      'PNP (unter NHN)': Math.round(STPAULI_PNP_NHN_M * 100),
+      MHW: HARBURG_MHW_CM,
+      MNW: HARBURG_MNW_CM,
+      'PNP (unter NHN)': Math.round(HARBURG_PNP_NHN_M * 100),
       measurements,
       peaks,
     };
@@ -4416,9 +4421,9 @@ async function loadBSH() {
         source: 'static',
         station_name: 'Hamburg-Harburg (statisch 2026)',
         hwnw_forecast: staticData,
-        MHW: STPAULI_MHW_CM,
-        MNW: STPAULI_MNW_CM,
-        'PNP (unter NHN)': Math.round(STPAULI_PNP_NHN_M * 100),
+        MHW: HARBURG_MHW_CM,
+        MNW: HARBURG_MNW_CM,
+        'PNP (unter NHN)': Math.round(HARBURG_PNP_NHN_M * 100),
       };
       console.info('Statische BSH-Gezeitendaten geladen:', staticData.length, 'Einträge');
       return true;
@@ -4494,8 +4499,8 @@ function detectPeaks(measurements, smoothedCm, minGapMs) {
 function bshEventsFromApi() {
   if (!bshApiData) return [];
   const PNP = (bshApiData['PNP (unter NHN)'] || -500) / 100; // m, negativ
-  const MHW_M = (bshApiData.MHW ?? STPAULI_MHW_CM) / 100;
-  const MNW_M = (bshApiData.MNW ?? STPAULI_MNW_CM) / 100;
+  const MHW_M = (bshApiData.MHW ?? HARBURG_MHW_CM) / 100;
+  const MNW_M = (bshApiData.MNW ?? HARBURG_MNW_CM) / 100;
 
   // BSH-Format: hwnw_forecast.data = [{timestamp, value(cm PNP), event('HW'|'NW'), forecast('-0,5 m')}, ...]
   if (bshApiData.source === 'bsh' && bshApiData.hwnw_forecast?.data) {
@@ -4606,9 +4611,9 @@ function renderGezeiten() {
   const nowRef = useLive ? now : new Date(2026, now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
   const todayRef = useLive ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : new Date(2026, now.getMonth(), now.getDate());
 
-  // MHW/MNW aus API, sonst Fallback (St. Pauli)
-  const MHW = useLive && bshApiData?.MHW ? bshApiData.MHW/100 : 7.14;
-  const MNW = useLive && bshApiData?.MNW ? bshApiData.MNW/100 : 3.31;
+  // MHW/MNW aus API, sonst Harburg-Fallback
+  const MHW = useLive && bshApiData?.MHW ? bshApiData.MHW/100 : HARBURG_MHW_CM / 100;
+  const MNW = useLive && bshApiData?.MNW ? bshApiData.MNW/100 : HARBURG_MNW_CM / 100;
 
   // ── Sturmflut-Warnung ──────────────────────
   // Prüft HW-Scheitelwerte der nächsten 3 Tage (heute, morgen, übermorgen).
@@ -4694,8 +4699,8 @@ function renderGezeiten() {
 
   if (useLive && (isBSH || isPegel)) {
     const PNP = (bshApiData['PNP (unter NHN)'] || -500) / 100;  // m, negativ
-    const mhwCm = bshApiData.MHW ?? STPAULI_MHW_CM;
-    const mnwCm = bshApiData.MNW ?? STPAULI_MNW_CM;
+    const mhwCm = bshApiData.MHW ?? HARBURG_MHW_CM;
+    const mnwCm = bshApiData.MNW ?? HARBURG_MNW_CM;
     const toCmNHN = v => v == null ? null : Math.round(v + PNP * 100);
 
     // BSH-Farbpalette (wie auf der BSH-Seite)
@@ -5254,9 +5259,9 @@ function collectTideBigSeries() {
     forecast: [],     // {ts, cm} — orange Kurvenvorhersage (BSH)
     measure: [],      // {ts, cm} — rote Messkurve (PEGELONLINE)
     peaks: [],        // {ts, cm, typ} — HW/NW-Scheitel
-    mhwCm: STPAULI_MHW_CM,
-    mnwCm: STPAULI_MNW_CM,
-    PNP: STPAULI_PNP_NHN_M,
+    mhwCm: HARBURG_MHW_CM,
+    mnwCm: HARBURG_MNW_CM,
+    PNP: HARBURG_PNP_NHN_M,
   };
   if (!src) return result;
 
